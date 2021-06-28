@@ -23,8 +23,8 @@ tr.class.scheme <- list(class.symbols=c("q","e","l"), upper.limits=c(0.8118987,1
 n.limits <- c(1,5)
 
 
-source("Feature_Value_Summary_Statistics.R")
-source("M-Type_Summary_Statistics.R")
+#source("Feature_Value_Summary_Statistics.R")
+#source("M-Type_Summary_Statistics.R")
 
 compute.features <- function(melody.filenames=list.files(path=dir,pattern=".csv"),dir=".",output="melody.wise", use.segmentation=TRUE, write.out=FALSE) {
 	if(output!="melody.wise" & use.segmentation==FALSE) {
@@ -226,8 +226,6 @@ compute.m.type.corpus.based.features <- function(analysis.melodies,ana.dir=".",c
 
 feature.similarity <- function(mel.fns=list.files(path=dir,pattern=".csv"),dir=".",features=c("p.range","step.cont.glob.var","tonalness","d.eq.trans"),use.segmentation=FALSE,method="euclidean",eucl.stand=TRUE,corpus.dens.list.fn=NULL,average=TRUE){
 
-	source("Feature_Similarity.R")
-	require(cluster)
 	mel.feat <- compute.features(melody.filenames=mel.fns,dir=dir,output="melody.wise",use.segmentation=use.segmentation)
 	mel.feat.new <- as.data.frame(mel.feat[,features])
 	row.names(mel.feat.new) <- mel.feat[,"file.id"]

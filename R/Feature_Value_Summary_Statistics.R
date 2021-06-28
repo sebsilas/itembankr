@@ -11,7 +11,7 @@ summary.phr.features <- function(phr.data,poly.contour=TRUE){
 	onset <- as.numeric(phr.data$onset)
 	durs <- as.numeric(phr.data$durs)
 	dur16 <- as.numeric(phr.data$dur16)
-	
+
 	p.min <- min(pitch)
 	p.max <- max(pitch)
 	p.range <- p.max - p.min
@@ -20,7 +20,7 @@ summary.phr.features <- function(phr.data,poly.contour=TRUE){
 	p.entropy <- compute.entropy(pitch,phr.length.limits[2])
 	#p.results <- data.frame(p.min,p.max,p.range,p.var,p.mean,p.entropy)
 	p.results <- data.frame(p.range,p.entropy,p.std)
-	
+
 	intervals <- pitch[2:length(pitch)] - pitch[1:length(pitch)-1]
 	#i.min <- min(intervals)
 	#i.max <- max(intervals)
@@ -37,7 +37,7 @@ summary.phr.features <- function(phr.data,poly.contour=TRUE){
 	i.entropy <- compute.entropy(intervals,(phr.length.limits[2]-1))
 	#i.results <- data.frame(i.min,i.max,i.range,i.abs.range,i.var,i.mean,i.abs.mean,i.median,i.abs.median,i.mode,i.entropy)
 	i.results <- data.frame(i.abs.range,i.abs.mean,i.abs.std,i.mode,i.entropy)
-	
+
 	d.min <- min(durs)
 	d.max <- max(durs)
 	d.range <- d.max - d.min
@@ -52,7 +52,7 @@ summary.phr.features <- function(phr.data,poly.contour=TRUE){
 	d.entropy <- compute.entropy(dur16,phr.length.limits[2])
 	#d.results <- data.frame(d.min,d.max,d.range,d.var,d.median,d.mode,d.entropy)
 	d.results <- data.frame(d.range,d.median,d.mode,d.entropy,d.eq.trans,d.half.trans,d.dotted.trans)
-	
+
 	len <- length(pitch)
 	glob.duration <- onset[length(onset)] - onset[1]
 	note.dens <- len / glob.duration
@@ -60,23 +60,22 @@ summary.phr.features <- function(phr.data,poly.contour=TRUE){
 	#av.tf <- average.term.frequency(intervals,2,min(5,length(intervals)))
 	#agg.results <- data.frame(len,glob.duration,note.dens,h.contour,av.tf)
 	agg.results <- data.frame(len,glob.duration,note.dens)
-	
+
 	tonality.vector <- compute.tonality.vector(pitch,dur16,make.tonal.weights(maj.vector,min.vector))
 	ton.results <- compute.tonal.features(tonality.vector)
-	
+
 	h.contour <- huron.contour(onset,pitch)
-	
+
 	int.contour.gradients <- line.contour(onset,pitch)
 	int.contour <- compute.int.cont.feat(int.contour.gradients)
-	
+
 	step.contour.vector <- step.contour(pitch,dur16)
 	step.contour <- compute.step.cont.feat(step.contour.vector)
-	
+
 	if(poly.contour==TRUE) {
 		if(step.contour$step.cont.loc.var==0) {
 			coeffs <- data.frame(poly.coeff1=0,poly.coeff2=0,poly.coeff3=0)}
 		else{
-			require(MASS)
 			if((onset[length(onset)]-onset[1]) > 30) {
 				coeffs <- data.frame(poly.coeff1=NA,poly.coeff2=NA,poly.coeff3=NA)}
 			else{
@@ -89,18 +88,18 @@ summary.phr.features <- function(phr.data,poly.contour=TRUE){
 		}
 	results <- data.frame(p.results,i.results,d.results,agg.results,ton.results,con.results)
 
-	
+
 	rownames(results) <- NULL
 	results
-	
+
 	}
 compute.entropy <- function(integer.vector,alphabet.size=2) {
 	tab <- table(integer.vector)
 	normal.tab <- tab / sum(tab)
 	entropy <- -(sum(normal.tab*logb(normal.tab,2))) / logb(alphabet.size,2)
-	
+
 	}
-	
+
 huron.contour <- function (onset, pitch) {
 	contour.class <- vector(mode="character", length=1)
 	reduced.pitch <- vector(mode="numeric", length = 3)
@@ -148,7 +147,7 @@ huron.contour <- function (onset, pitch) {
 						contour.class <- "concave"}
 					}
 			}
-		}	
+		}
 	contour.class
 }
 
@@ -161,12 +160,12 @@ average.term.frequency <- function(int.vector,lower.n,upper.n){
 		indx <- indx+1
 		}
 	av.tf <- sum(tf)/sum(n.weights[lower.n:upper.n])
-	
+
 	}
 
 mean.term.frequency <- function(int.vector,n) {
-	
-	string <- as.character(int.vector)	
+
+	string <- as.character(int.vector)
 	if(n==2){
 		n1 <- vector(mode="character",length=length(int.vector)-1)
 		n2 <- vector(mode="character",length=length(int.vector)-1)
@@ -179,7 +178,7 @@ mean.term.frequency <- function(int.vector,n) {
 		tab <- as.data.frame(tab)
 		tab <- tab[tab$Freq>0,]
 		mean.tf <- mean(tab$Freq/(length(string)-1))
-	}	
+	}
 	else{
 		if(n==3){
 			n1 <- vector(mode="character",length=length(int.vector)-2)
@@ -236,7 +235,7 @@ mean.term.frequency <- function(int.vector,n) {
 			}
 	mean.tf	}
 	}
-	
+
 compute.tonality.vector <- function(pitch,dur16,tonal.weights) {
 	data <- data.frame(p.class=as.factor(pitch%%12),weighted.p=pitch*dur16)
 	tab <- tapply(data$weighted.p,data$p.class,sum)
@@ -257,9 +256,9 @@ compute.tonal.features <- function(tonality.vector) {
 	results <- data.frame(tonalness=A0,tonal.clarity=ratio.A0A1,tonal.spike,mode)
 	rownames(results) <- NULL
 	results
-	
+
 	}
-	
+
 make.tonal.weights <- function(maj.vector,min.vetor) {
 	w.matrix <- matrix(data=NA,nrow=12,ncol=24)
 	for(i in 1:12) {
@@ -271,7 +270,7 @@ make.tonal.weights <- function(maj.vector,min.vetor) {
 		w.matrix[,i] <- c(maj.vector[((12-k)*j):(12*j)], maj.vector[1:(12-h)])
 		w.matrix[,i+12] <- c(min.vector[((12-k)*j):(12*j)], min.vector[1:(12-h)])
 		}
-	w.matrix <- as.data.frame(w.matrix)			
+	w.matrix <- as.data.frame(w.matrix)
 colnames(w.matrix) <- c("C","C#","D","D#","E","F","F#","G","G#","A","A#","B", "c","c#","d","d#","e","f","f#","g","g#","a","a#","b")
 	w.matrix
 	}
@@ -300,7 +299,7 @@ poly.contour.model <- function (onset, pitch, dur) {
 	variables <- data.frame(V1)
 	for(i in 2:(length(V1)/2)) {
 		column <- V1^i
-		variables[,i] <- column 
+		variables[,i] <- column
 		}
 		variables
 	all.models <- lm(pitch ~ ., data = variables)
@@ -308,25 +307,25 @@ poly.contour.model <- function (onset, pitch, dur) {
 	winner.model
 	#print(winner.model)
 	}
-	
+
 coeff.extraction <- function(winner.model) {
-		
+
 		coefficients <- vector(mode = "numeric", length = 12)
 		exponents <- vector(mode="numeric", length=11)
 		var <- attr(winner.model$terms,"term.labels")
-	
+
 	for(i in 1:length(winner.model$coefficients)) {
 		coefficients[i] <- winner.model$coefficients[i]
 		}
 	#print(coefficients)
-	
+
 	for(i in 1:length(var)) {
     		exponents[i] <- as.numeric(substring(var[i],2,3))}
-		
+
 		pc1 <- coefficients[1]
 		if(length(pc1)==0) pc1 <- 0
 		coefficients <- coefficients[2:12]
-		
+
 		pc2 <- coefficients[which(exponents==1)]
 		if(length(pc2)==0) pc2 <- 0
 		pc3 <- coefficients[which(exponents==2)]
@@ -349,9 +348,9 @@ coeff.extraction <- function(winner.model) {
 		if(length(pc11)==0) pc11 <- 0
 		pc12 <- coefficients[which(exponents==11)]
 		if(length(pc12)==0) pc12 <- 0
-	
+
 		coefficients.in.order <- c(pc1,pc2,pc3,pc4,pc5,pc6,pc7,pc8,pc9,pc10,pc11,pc12)
-	
+
 	}
 
 
@@ -370,9 +369,9 @@ line.contour <- function (onset, pitch) {
 					candidate.points.onset[k] <- onset[i]
 					k <- k+1
 			}
-			else{}	
+			else{}
 		}
-					
+
 	}
 	else{for(i in 3:(length(pitch)-2)) {
 			if( ((pitch[i-1] < pitch[i]) && (pitch[i] > pitch[i+1])) ||
@@ -422,14 +421,14 @@ line.contour <- function (onset, pitch) {
 			#int.contour <- approx(seq(along=weighted.gradients),weighted.gradients,method="constant",rule=2,n=4)$y
 			#print(int.contour)
 			#int.contour
-				
+
 	}
-	
+
 compute.int.cont.feat <- function(int.cont.gradients) {
 	n.grad.changes <- sum(abs(sign(diff(int.cont.gradients))))
-	
+
 	int.cont.glob.dir <- as.factor(sign(sum(int.cont.gradients)))
-	int.cont.grad.mean <- mean(abs(int.cont.gradients)) 
+	int.cont.grad.mean <- mean(abs(int.cont.gradients))
 	int.cont.grad.std <- sqrt(var(int.cont.gradients))
 	tmp.enum  <- sign(int.cont.gradients[1:length(int.cont.gradients)-1]*int.cont.gradients[2:length(int.cont.gradients)])
 	tmp.enum <- abs(sum(tmp.enum[tmp.enum==-1]))
@@ -448,7 +447,7 @@ compute.int.cont.feat <- function(int.cont.gradients) {
 
 	}
 
-	
+
 step.contour <- function(pitch,dur16) {
 	norm.dur16 <- (dur16/(sum(dur16)))*64
 	if(length(which(round(norm.dur16) > 0)) < 2) {norm.pitch <- rep(pitch,round(norm.dur16)+1)}
@@ -460,7 +459,7 @@ compute.step.cont.feat <- function(step.cont.vector) {
 	step.cont.loc.var <- mean(abs(diff(step.cont.vector)))
 	if(step.cont.loc.var==0) {step.cont.glob.dir <- 0}
 	else{step.cont.glob.dir <- cor(step.cont.vector,seq(along=step.cont.vector))}
-	
+
 	step.cont.feat <- data.frame(step.cont.glob.var,step.cont.glob.dir,step.cont.loc.var)
 
 }

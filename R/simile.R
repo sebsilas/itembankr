@@ -32,8 +32,8 @@ get_all_ngrams <- function(x, N = 3){
 #as in  Müllensiefen & Frieler (2004)
 ngrukkon <- function(x, y, N = 3){
   #browser()
-  x <- get_all_ngrams(x, N = N) %>% pull(value)
-  y <- get_all_ngrams(y, N = N) %>% pull(value)
+  x <- get_all_ngrams(x, N = N) %>% dplyr::pull(value)
+  y <- get_all_ngrams(y, N = N) %>% dplyr::pull(value)
   joint <- c(x, y) %>% table()
   tx <- factor(x, levels = names(joint)) %>% table()
   ty <- factor(y, levels = names(joint)) %>% table()
@@ -50,10 +50,10 @@ get_implicit_harmonies <- function(pitch_vec, segmentation = NULL, only_winner =
     }
     s <- unique(segmentation)
     return(
-      map_dfr(s, function(x){
+      purrr:map_dfr(s, function(x){
         #browser()
         pv <- pitch_vec[segmentation == x]
-        tibble(segment = x, key = get_implicit_harmonies(pv, NULL, only_winner = only_winnter) %>%   pull(key))
+        tidyr::tibble(segment = x, key = get_implicit_harmonies(pv, NULL, only_winner = only_winnter) %>% dplyr::pull(key))
       })
     )
 
@@ -62,11 +62,11 @@ get_implicit_harmonies <- function(pitch_vec, segmentation = NULL, only_winner =
   correlations <-
     map_dfr(0:11, function(t){
       #browser()
-      w_major <- cor.test(pitch_freq, ks_weights_major[((0:11 - t) %% 12) + 1]) %>% broom::tidy() %>% pull(estimate)
-      w_minor <- cor.test(pitch_freq, ks_weights_minor[((0:11 - t) %% 12) + 1]) %>% broom::tidy() %>% pull(estimate)
-      bind_rows(tibble(transposition = t,  match = w_major, type = "major", key = sprintf("%s-maj", pc_labels[t+1])),
-                tibble(transposition = t,  match = w_minor, type = "minor", key = sprintf("%s-min", pc_labels[t+1])))
-    }) %>% arrange(desc(match))
+      w_major <- cor.test(pitch_freq, ks_weights_major[((0:11 - t) %% 12) + 1]) %>% broom::tidy() %>% dplyr::pull(estimate)
+      w_minor <- cor.test(pitch_freq, ks_weights_minor[((0:11 - t) %% 12) + 1]) %>% broom::tidy() %>% dplyr::pull(estimate)
+      dplyr::bind_rows(tidyr::tibble(transposition = t,  match = w_major, type = "major", key = sprintf("%s-maj", pc_labels[t+1])),
+                tidyr::tibble(transposition = t,  match = w_minor, type = "minor", key = sprintf("%s-min", pc_labels[t+1])))
+    }) %>% dplyr::arrange(desc(match))
   if(only_winner){
     return(correlations[1,])
   }
@@ -77,11 +77,11 @@ bootstrap_implicit_harmonies <- function(pitch_vec, segmentation = NULL, sample_
   sample_size <- max(1, round(sample_frac * l))
 
   bs <-
-    map_dfr(1:size, function(x){
+    purrr::map_dfr(1:size, function(x){
       pv <- sample(pitch_vec, replace = T, sample_size)
       get_implicit_harmonies(pv, only_winner = T)
     })
-  best_key <- bs %>% count(key) %>% arrange(desc(n)) %>% pull(key)
+  best_key <- bs %>% dplyr::count(key) %>% dplyr::arrange(desc(n)) %>% dplyr::pull(key)
   bs %>% filter(key == best_key[1]) %>% head(1)
 }
 
@@ -103,8 +103,8 @@ rhythfuzz <- function(dur_vec1, dur_vec2){
 
 harmcore <- function(pitch_vec1, pitch_vec2, segmentation1 = NULL, segmentation2 = NULL){
   #browser()
-  implicit_harm1 <- get_implicit_harmonies(pitch_vec1, segmentation1) %>% pull(key)
-  implicit_harm2 <- get_implicit_harmonies(pitch_vec2, segmentation2) %>% pull(key)
+  implicit_harm1 <- get_implicit_harmonies(pitch_vec1, segmentation1) %>% dplyr::pull(key)
+  implicit_harm2 <- get_implicit_harmonies(pitch_vec2, segmentation2) %>% dplyr::pull(key)
   common_keys <- levels(factor(union(implicit_harm1, implicit_harm2)))
   implicit_harm1 <- factor(implicit_harm1, levels = common_keys) %>% as.integer()
   implicit_harm2 <- factor(implicit_harm2, levels = common_keys) %>% as.integer()
@@ -112,8 +112,8 @@ harmcore <- function(pitch_vec1, pitch_vec2, segmentation1 = NULL, segmentation2
 }
 
 harmcore2 <- function(pitch_vec1, pitch_vec2, segmentation1 = NULL, segmentation2 = NULL){
-  implicit_harm1 <- bootstrap_implicit_harmonies(pitch_vec1, segmentation1) %>% pull(key)
-  implicit_harm2 <- bootstrap_implicit_harmonies(pitch_vec2, segmentation2) %>% pull(key)
+  implicit_harm1 <- bootstrap_implicit_harmonies(pitch_vec1, segmentation1) %>% dplyr::pull(key)
+  implicit_harm2 <- bootstrap_implicit_harmonies(pitch_vec2, segmentation2) %>% dplyr::pull(key)
   common_keys <- levels(factor(union(implicit_harm1, implicit_harm2)))
   implicit_harm1 <- factor(implicit_harm1, levels = common_keys) %>% as.integer()
   implicit_harm2 <- factor(implicit_harm2, levels = common_keys) %>% as.integer()
@@ -130,12 +130,12 @@ modus <- function(x){
 #find a list of candidates for best transpositions for two pitch vectors, based on basic stats
 get_transposition_hints <- function(pitch_vec1, pitch_vec2){
   ih1 <- get_implicit_harmonies(pitch_vec1, only_winner = T)
-  key1 <- ih1 %>% pull(key)
-  pc1 <- ih1 %>% pull(transposition)
+  key1 <- ih1 %>% dplyr::pull(key)
+  pc1 <- ih1 %>% dplyr::pull(transposition)
   ih2 <- get_implicit_harmonies(pitch_vec2, only_winner = T)
-  pc2 <- ih2 %>% pull(transposition)
+  pc2 <- ih2 %>% dplyr::pull(transposition)
   key_diff <- (pc2 -  pc1) %% 12
-  #messagef("Best key 1 = %s, best key 2 = %s, key diff = %d", key1, ih2 %>% head(1) %>% pull(key), key_diff )
+  #messagef("Best key 1 = %s, best key 2 = %s, key diff = %d", key1, ih2 %>% head(1) %>% dplyr::pull(key), key_diff )
   modus1 <- modus(pitch_vec1)
   modus2 <- modus(pitch_vec2)
   ret <- c(modus1 - modus2,
@@ -151,11 +151,11 @@ get_transposition_hints <- function(pitch_vec1, pitch_vec2){
 #transposision in semitone of the *second* melody
 find_best_transposition <- function(pitch_vec1, pitch_vec2){
   trans_hints <- get_transposition_hints(pitch_vec1, pitch_vec2)
-  sims <- map_dfr(trans_hints, function(x){
+  sims <- purrr:map_dfr(trans_hints, function(x){
     #browser()
-    tibble(transposition = x, sim = edit_dist(intToUtf8(pitch_vec1), intToUtf8(pitch_vec2 + x)))
+    tidyr::tibble(transposition = x, sim = edit_dist(intToUtf8(pitch_vec1), intToUtf8(pitch_vec2 + x)))
   })
-  sims %>% arrange(sim) %>% head(1) %>% pull(transposition)
+  sims %>% dplyr::arrange(sim) %>% head(1) %>% dplyr::pull(transposition)
 }
 
 opti3 <- function(pitch_vec1, dur_vec1, pitch_vec2, dur_vec2, N = 3, use_bootstrap = T){
@@ -186,16 +186,16 @@ opti3 <- function(pitch_vec1, dur_vec1, pitch_vec2, dur_vec2, N = 3, use_bootstr
 read_melody <- function(fname){
   melody <-
     read.csv(fname, header = F) %>%
-    as_tibble() %>%
+    tidyr::as_tibble() %>%
     rename(onset = V1, freq = V3, dur = V2) %>%
     ## NB! switched columns in above line for sonic annotator PYIN! if output is from Tony, try rename(onset = V1, freq = V2, dur = V3)
     mutate(pitch = round(freq_to_midi(freq)),
            #cents_from_first_note = vector.cents.first.note(round(freq_to_midi(freq))),
-           cents_deviation_from_nearest_midi_pitch = vector.cents.between.two.vectors(round(midi_to_freq(freq_to_midi(freq))), freq),
+           #cents_deviation_from_nearest_midi_pitch = vector_cents_between_two_vectors(round(midi_to_freq(freq_to_midi(freq))), freq),
            # the last line looks tautological, but, by converting back and forth, you get the quantised pitch and can measure the cents deviation from this
-           pitch_class = midi.to.pitch.class(round(freq_to_midi(freq))),
-           pitch_class_numeric = midi.to.pitch.class.numeric(round(freq_to_midi(freq))),
-           sci_notation = midi.to.sci.notation(round(freq_to_midi(freq))),
+           pitch_class = midi_to_pitch_class(round(freq_to_midi(freq))),
+           pitch_class_numeric = midi_to_pitch_class.numeric(round(freq_to_midi(freq))),
+           sci_notation = midi_to_sci_notation(round(freq_to_midi(freq))),
            interval = c(NA, diff(pitch)),
            ioi = c(NA, diff(onset)), ## <= seb edit. original => ioi = c(diff(onset), NA)
            ioi_class = classify_duration(ioi))
@@ -214,7 +214,7 @@ read_melody <- function(fname){
 opti3_df <- function(melody1, melody2, N = 3, use_bootstrap = F){
   trans_hints <- get_transposition_hints(melody1$pitch, melody2$pitch)
   v_rhythfuzz <- rhythfuzz(melody1$ioi_class, melody2$ioi_class)
-  sims <- map_dfr(trans_hints, function(th){
+  sims <- purrr::map_dfr(trans_hints, function(th){
     v_ngrukkon <- ngrukkon(melody1$pitch, melody2$pitch + th, N = N)
     if(use_bootstrap){
       v_harmcore <- harmcore2(melody1$pitch, melody2$pitch + th)
@@ -230,7 +230,7 @@ opti3_df <- function(melody1, melody2, N = 3, use_bootstrap = F){
            harmcore = v_harmcore,
            opti3 =  0.505 *  v_ngrukkon + 0.417  * v_rhythfuzz + 0.24  * v_harmcore - 0.146)
   })
-  sims %>% arrange(desc(opti3))
+  sims %>% dplyr::arrange(desc(opti3))
 }
 #windowed version, shifts shorter melody along longer
 #returns tibble of shift offsets and highest opti3 similarity
@@ -253,8 +253,8 @@ best_subsequence_similarity <- function(melody1, melody2){
   map_dfr(1:(d_l + 1), function(offset){
     #messagef("Offset %d", offset)
     longer_snip <- longer[seq(offset, offset + l1 - 1),]
-    tibble(offset = offset - 1, sim  =  opti3_df(shorter, longer_snip) %>% head(1) %>% pull(opti3))
-  }) %>% mutate(process = swap) %>% arrange(desc(sim))
+    tidyr::tibble(offset = offset - 1, sim  =  opti3_df(shorter, longer_snip) %>% head(1) %>% dplyr::pull(opti3))
+  }) %>% dplyr::mutate(process = swap) %>% dplyr::arrange(desc(sim))
 }
 
 

@@ -2,7 +2,7 @@ compute.features.from.ngram.table.main <- function(collapsed.ngram.table) {
 	n.gr.lengths <- sapply(as.character(collapsed.ngram.table$ngram), function(x) 1+nchar(x)%/%4)
 	min.n <- min(n.gr.lengths)
 	max.n <- max(n.gr.lengths)
-	
+
 	m.entropy <- compute.m.ngram.entropy(collapsed.ngram.table,n.gr.lengths,min.n,max.n)
 	#m.tf <- compute.m.tf(collapsed.ngram.table,n.gr.lengths,min.n,max.n)
 	#m.mprob <- compute.m.max.prob(collapsed.ngram.table,n.gr.lengths,min.n,max.n)
@@ -12,7 +12,7 @@ compute.features.from.ngram.table.main <- function(collapsed.ngram.table) {
 	m.S <- compute.sichels.s(collapsed.ngram.table,n.gr.lengths,min.n,max.n)
 	m.H <- compute.honores.h(collapsed.ngram.table,n.gr.lengths,min.n,max.n)
 	features <- data.frame(mean.entropy=m.entropy, mean.productivity=m.prod, mean.Simpsons.D=m.D, mean.Yules.K=m.K, mean.Sichels.S=m.S, mean.Honores.H=m.H)
-	
+
 	}
 
 n.grams.across.melodies <- function(melody.filenames,n.lim=n.limits,phr.length.lim=phr.length.limits,write.out=FALSE) {
@@ -22,7 +22,7 @@ n.grams.across.melodies <- function(melody.filenames,n.lim=n.limits,phr.length.l
 		file.id <- substr(melody.filenames[i],1,nchar(melody.filenames[i])-4)
 		print(file.id)
 		ngr.mel.tab.collapsed <- n.grams.from.melody.main(melody.filenames[i],n.lim,phr.length.lim)
-		if(any(is.na(ngr.mel.tab.collapsed))) next 
+		if(any(is.na(ngr.mel.tab.collapsed))) next
 		ngr.tab.temp <- data.frame(file.id=file.id,ngr.mel.tab.collapsed)
 		ngr.tab <- rbind(ngr.tab,ngr.tab.temp)
 		}
@@ -67,8 +67,8 @@ n.grams.from.melody.main <- function(melody.filename,n.lim=n.limits,phr.length.l
 		switch(write.out, collapsed=write.table(ngrams.mel.tab.collapsed,file=paste(file.id,"ngram_counts_collapsed.csv",sep="-"),sep=";",row.names=FALSE), full=write.table(ngrams.mel.tab,file=paste(file.id,"ngram_counts.csv",sep="-"), sep=";",row.names=FALSE))
 		}
 	ngrams.mel.tab.collapsed
-	
-	
+
+
 	}
 
 
@@ -91,7 +91,7 @@ count.ngrams.in.melody <- function(ngram.phr.list,min.n,max.n) {
 			}
 	ngram.table <- data.frame(phr=i,ngram.table)
 	full.table <- data.frame(rbind(full.table,ngram.table))
-	
+
 	}
 	row.names(full.table) <- NULL
 	full.table
@@ -100,7 +100,7 @@ count.ngrams.in.melody <- function(ngram.phr.list,min.n,max.n) {
 create.ngram.hash <- function(class.diff.phr.list) {
 	out.list <- class.diff.phr.list
 	for(i in 1:(length(out.list)-1)) {
-		out.list[[i+1]][,19] <- as.vector(mapply(function(x,y) paste(x,y,sep=""), out.list[[i+1]]["pitch"],out.list[[i+1]]["tr_durs"],USE.NAMES=FALSE)) 
+		out.list[[i+1]][,19] <- as.vector(mapply(function(x,y) paste(x,y,sep=""), out.list[[i+1]]["pitch"],out.list[[i+1]]["tr_durs"],USE.NAMES=FALSE))
 		colnames(out.list[[i+1]])[19] <- "p.tr.hash"
 		}
 	out.list
@@ -132,11 +132,11 @@ class.transform <- function(diff.transf.phr.list) {
 
 
 
-	
-	
+
+
 ratio <- function(vec) {
 	vec[2:length(vec)] / vec[1:(length(vec)-1)]}
-	
+
 write.csv <- function(melody.list) {
 	phrase.pitches <- mel.data$pitch[start:end]
 				onset <- mel.data$onset[start:end]
@@ -146,7 +146,7 @@ write.csv <- function(melody.list) {
 				cat(firstline, file=out.file, sep="\n")
 			cat(colnames(mel.data), file=out.file, sep=";")
 			cat("\n", file=out.file)
-	
+
 	}
 
 tr.classify <- function(tr,class.scheme) {
@@ -159,9 +159,9 @@ tr.classify <- function(tr,class.scheme) {
 	if(any(dif>0)) {
 		class <- tr.class.scheme[["class.symbols"]][which(mod==min(mod[which(dif>0)]))[1]]}
 	else{class <- tr.class.scheme[["class.symbols"]][length(tr.class.scheme[["class.symbols"]])]}
-	
+
 	}
-	
+
 p.classify <- function(p.int,class.scheme){
 	if(p.int<class.scheme$raw.int[1]) {class <- "dl"}
 	else{
@@ -232,7 +232,7 @@ compute.m.tf <- function(collapsed.ngram.table,n.gr.lengths,min.n,max.n) {
 		}
 	#mean.tf <- sum(tf) / sum(weight)
 	mean.tf <- mean(tf)
-		
+
 	}
 
 make.spc <- function(collapsed.ngram.table) {
@@ -240,7 +240,7 @@ make.spc <- function(collapsed.ngram.table) {
 	#print(tab)
 	tab <- data.frame(m=as.numeric(rownames(tab)),Vm=as.vector(tab))
 	}
-	
+
 compute.simpsons.d <- function(collapsed.ngram.table,n.gr.lengths,min.n,max.n) {
 	sum.D <- vector(mode="numeric",length=max.n-min.n+1)
 	for(i in min.n:max.n) {
@@ -258,7 +258,7 @@ compute.simpsons.d <- function(collapsed.ngram.table,n.gr.lengths,min.n,max.n) {
 	}
 	m.D <- mean(sum.D)
 	}
-	
+
 compute.yules.k <- function(collapsed.ngram.table,n.gr.lengths,min.n,max.n) {
 	K <- vector(mode="numeric",length=max.n-min.n+1)
 	for(i in min.n:max.n) {
@@ -282,9 +282,9 @@ compute.sichels.s <- function(collapsed.ngram.table,n.gr.lengths,min.n,max.n) {
 		else{
 			S[i] <- freq.spc[freq.spc$m==2,2] / sum(freq.spc$Vm)}
 		}
-	m.S <- mean(S)	
+	m.S <- mean(S)
 	}
-	
+
 compute.honores.h <- function(collapsed.ngram.table,n.gr.lengths,min.n,max.n) {
 	H <- vector(mode="numeric",length=max.n-min.n+1)
 	for(i in min.n:max.n) {
@@ -296,14 +296,13 @@ compute.honores.h <- function(collapsed.ngram.table,n.gr.lengths,min.n,max.n) {
 			H[i] <- 100*( log(N) / 1-(freq.spc[freq.spc$m==1,2]/sum(freq.spc$Vm)))
 			}
 		}
-	m.H <- mean(H)	
+	m.H <- mean(H)
 	}
-	
+
 compute.zipfs.z <- function(collapsed.ngram.table) {
 	n.gr.lengths <- sapply(as.character(collapsed.ngram.table$ngram), function(x) 1+nchar(x)%/%4)
 	min.n <- min(n.gr.lengths)
 	max.n <- max(n.gr.lengths)
-	require(zipfR)
 	Z <- vector(mode="numeric",length=max.n-min.n+1)
 	N <- vector(mode="numeric",length=max.n-min.n+1)
 	for(i in min.n:max.n) {
@@ -319,5 +318,5 @@ compute.zipfs.z <- function(collapsed.ngram.table) {
 		}
 	print(N)
 	print(Z)
-	m.Z <- mean(Z,na.rm=TRUE)			
+	m.Z <- mean(Z,na.rm=TRUE)
 	}
