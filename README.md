@@ -6,7 +6,7 @@ For convenience, we refer to a "corpus" as some raw data, not in itself particul
 
 Hence, the main function itembankr is corpus_to_item_bankr:
 
-```{r}
+``` r
 corpus_to_item_bank(corpus_name = 'Berkowitz',
                     midi_file_dir = 'berkowitz_midi_rhythmic_100bpm',
                     musicxml_file_dir = 'berkowitz_musicxml',
