@@ -53,3 +53,16 @@ main_db <- get_melody_features(Berkowitz_freq_db, mel_sep = ",", durationMeasure
 phrases_db <- create_phrases_db(corpus_name = corpus_name, midi_file_dir = add_prefix(paste0('item_banks/', corpus_name, '/', midi_file_dir), prefix), prefix = prefix)
 
 ```
+
+## References
+
+Melody Features
+
+- FANTASTIC
+- Klaus difficulty measures
+- Klaus segmentation algo
+
+Corpuses
+- WJD
+- Berkowitz
+- Slonimsky
