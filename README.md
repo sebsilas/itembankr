@@ -14,7 +14,7 @@ Berkowitz <- corpus_to_item_bank(corpus_name = 'Berkowitz',
                     output_type = 'both')
 ```
 
-The output of corpus_to_item_bank is a function which allows you to access whichever of the four possible item bank types you requested are:
+The output of `corpus_to_item_bank` is a function which allows you to access whichever of the four possible item bank types you requested are:
 
 ``` r
 # a fairly limited item bank consisting of just file references
