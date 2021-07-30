@@ -23,9 +23,9 @@ edit_sim <- function(s, t){
 get_all_ngrams <- function(x, N = 3){
   l <- length(x) - N + 1
   stopifnot(l > 0)
-  map_df(1:l, function(i){
+  purrr::map_df(1:l, function(i){
     ngram <- x[i:(i + N - 1)]
-    tibble(start = i, N = N, value = paste(ngram, collapse = ","))
+    tidyr::tibble(start = i, N = N, value = paste(ngram, collapse = ","))
   })
 }
 
@@ -60,7 +60,7 @@ get_implicit_harmonies <- function(pitch_vec, segmentation = NULL, only_winner =
   }
   pitch_freq <- table(factor(pitch_vec  %% 12, levels = 0:11))
   correlations <-
-    map_dfr(0:11, function(t){
+    purrr::map_dfr(0:11, function(t){
       #browser()
       w_major <- cor.test(pitch_freq, ks_weights_major[((0:11 - t) %% 12) + 1]) %>% broom::tidy() %>% dplyr::pull(estimate)
       w_minor <- cor.test(pitch_freq, ks_weights_minor[((0:11 - t) %% 12) + 1]) %>% broom::tidy() %>% dplyr::pull(estimate)
@@ -85,6 +85,15 @@ bootstrap_implicit_harmonies <- function(pitch_vec, segmentation = NULL, sample_
   bs %>% filter(key == best_key[1]) %>% head(1)
 }
 
+#' Classify ioi class (see Frieler.. )
+#'
+#' @param dur_vec
+#' @param ref_duration
+#'
+#' @return
+#' @export
+#'
+#' @examples
 classify_duration <- function(dur_vec, ref_duration = .5){
   rel_dur <- dur_vec/ref_duration
   rhythm_class <- rep(-2, length(rel_dur))
@@ -158,6 +167,19 @@ find_best_transposition <- function(pitch_vec1, pitch_vec2){
   sims %>% dplyr::arrange(sim) %>% head(1) %>% dplyr::pull(transposition)
 }
 
+#' Score using the opti3 measure of similarity
+#'
+#' @param pitch_vec1
+#' @param dur_vec1
+#' @param pitch_vec2
+#' @param dur_vec2
+#' @param N
+#' @param use_bootstrap
+#'
+#' @return
+#' @export
+#'
+#' @examples
 opti3 <- function(pitch_vec1, dur_vec1, pitch_vec2, dur_vec2, N = 3, use_bootstrap = T){
   pitch_vec1 <- round(pitch_vec1)
   pitch_vec2 <- round(pitch_vec2)
@@ -224,7 +246,7 @@ opti3_df <- function(melody1, melody2, N = 3, use_bootstrap = F){
 
     }
     #browser()
-    tibble(transposition = th,
+    tidyr::tibble(transposition = th,
            ngrukkon = v_ngrukkon,
            rhythfuzz = v_rhythfuzz,
            harmcore = v_harmcore,
@@ -250,7 +272,7 @@ best_subsequence_similarity <- function(melody1, melody2){
   l1 <- nrow(shorter)
   l2 <- nrow(longer)
   d_l <- l2 - l1
-  map_dfr(1:(d_l + 1), function(offset){
+  purrr::map_dfr(1:(d_l + 1), function(offset){
     #messagef("Offset %d", offset)
     longer_snip <- longer[seq(offset, offset + l1 - 1),]
     tidyr::tibble(offset = offset - 1, sim  =  opti3_df(shorter, longer_snip) %>% head(1) %>% dplyr::pull(opti3))

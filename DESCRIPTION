@@ -20,4 +20,9 @@ Imports:
     broom,
     MASS,
     cluster,
-    zipfR
+    zipfR,
+    magrittr,
+    lme4,
+    lmerTest,
+    psych
+RoxygenNote: 7.1.1

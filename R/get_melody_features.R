@@ -1,7 +1,6 @@
-get_melody_features <- function(df, mel_sep = ",", durationMeasures = FALSE) {
+get_melody_features <- function(df, mel_sep = ",", durationMeasures = TRUE) {
 
-  warning('This could take a long time.')
-  # the in df should contain the following columns:
+    # the in df should contain the following columns:
   # melody: a relative melody e.g 2, 2, -1, 3
   # freq: a count of the number of occurences of the dataset from which it came
 
@@ -10,27 +9,23 @@ get_melody_features <- function(df, mel_sep = ",", durationMeasures = FALSE) {
   df$N <- get_stimuli_length(df$melody, mel_sep)
 
   # tonality
-  tonality <- bind_rows(lapply(df$melody, get_tonality, mel_sep))
+  tonality <- dplyr::bind_rows(lapply(df$melody, get_tonality, mel_sep))
   df <- cbind(df, tonality)
 
-  # Krumhansl-Schmuckler algorithm
-  ks_tonality <- lapply(df$melody, function(x) get_implicit_harmonies(rel_to_abs_mel(str_mel_to_vector(x, sep = mel_sep)))$type )
-  df$ks_tonality <- unlist(ks_tonality)
-
   # step contour
-  step_contour_df <- bind_rows(lapply(df$melody, function(x) get_step_contour(str_mel_to_vector(x, mel_sep), TRUE)))
+  step_contour_df <- dplyr::bind_rows(lapply(df$melody, function(x) get_step_contour(str_mel_to_vector(x, mel_sep), TRUE)))
   step_contour_df <- step_contour_df[, c("step.cont.glob.var", "step.cont.glob.dir", "step.cont.loc.var")]
-  df <- bind_cols(df, step_contour_df)
+  df <- dplyr::bind_cols(df, step_contour_df)
 
   if (durationMeasures) {
     # duration measures
-    duration_df <- bind_rows(apply(df, MARGIN = 1, get_duration_measures))
+    duration_df <- dplyr::bind_rows(lapply(df$durations, get_duration_measures))
     names(duration_df) <- c("d.entropy", "d.eq.trans")
-    df <- bind_cols(df, duration_df)
+    df <- dplyr::bind_cols(df, duration_df)
   }
 
   # difficulty measures from Klaus
-  difficulty_measures <- bind_rows(lapply(df$melody, function(x) int_ngram_difficulty(int_to_pattern(x))))
+  difficulty_measures <- dplyr::bind_rows(lapply(df$melody, function(x) int_ngram_difficulty(int_to_pattern(x))))
   df <- cbind(df, difficulty_measures)
 
   # calculate melody spans, to make sure melodies can be presented within a user's range
@@ -41,12 +36,15 @@ get_melody_features <- function(df, mel_sep = ",", durationMeasures = FALSE) {
   #all_na <- function(x) any(!is.na(x))
   #df <- df %>% select_if(all_na)
 
-  # round all numeric columns to two decimal places
-  df <- df %>% mutate_at(vars(log_freq, step.cont.glob.dir, step.cont.glob.var,
-                              step.cont.loc.var, tonal.clarity, tonal.spike, tonalness, mean_int_size,
-                              int_range, dir_change,mean_dir_change, int_variety, pitch_variety, mean_run_length), funs(round(., 2)))
+  numeric_vars <- c("log_freq", "step.cont.glob.dir", "step.cont.glob.var",
+                    "step.cont.loc.var", "tonal.clarity", "tonal.spike", "tonalness", "mean_int_size",
+                    "int_range", "dir_change", "mean_dir_change", "int_variety", "pitch_variety",
+                    "mean_run_length", "d.entropy", "d.eq.trans")
 
-  print(hist_corpus(df))
+  # round all numeric columns to two decimal places
+  df <- df %>% dplyr::mutate_at(dplyr::vars(numeric_vars), dplyr::funs(round(., 2)))
+
+  print(hist_item_bank(dplyr::select(df, numeric_vars)))
   df
 }
 
@@ -116,12 +114,12 @@ get_step_contour <- function(melody, relative = TRUE) {
   }
 }
 
-get_duration_measures<- function(df_row) {
+get_duration_measures <- function(durations) {
   # wrap the FANTASTIC functions and add in some default durations
 
-  if (!is.na(df_row["melody"])) {
+  if (!is.na(durations) & !is.null(durations)) {
 
-    dur16 <- rep(.25, df_row["N"])
+    dur16 <- str_mel_to_vector(durations, ",")
     d.entropy <- compute.entropy(dur16,phr.length.limits[2])
     d.ratios <- round(dur16[1:length(dur16)-1]/ dur16[2:length(dur16)],2)
     d.eq.trans <- sum(sign(d.ratios[d.ratios==1])) / length(d.ratios)
@@ -146,7 +144,7 @@ pattern_to_int <- function(x){
 #input is a vector of string, of the form [i_1, i_2,...], where the i's are integer semitone intervals.
 int_ngram_difficulty <- function(pattern){
   if(length(pattern) > 1){
-    return(map_dfr(pattern, int_ngram_difficulty))
+    return(purrr::map_dfr(pattern, int_ngram_difficulty))
   }
   #browser()
   v <- pattern_to_int(pattern)
@@ -159,7 +157,7 @@ int_ngram_difficulty <- function(pattern){
   mean_run_length <- 1 - mean(r$lengths)/l
   int_variety <- dplyr::n_distinct(v)/l
   pitch_variety <- dplyr::n_distinct(c(0, cumsum(v)))/(l+1)
-  res <- tibble(value = pattern,
+  res <- tidyr::tibble(value = pattern,
          mean_int_size = mean_abs_int,
          int_range = int_range,
          dir_change = dir_change,
@@ -180,13 +178,10 @@ int_to_pattern <- function (v) {
 
 # plotting functions
 
-hist_corpus <- function(corpus) {
-  ggplot(gather(corpus[, names(corpus)[!names(corpus) %in% c("melody", "mode", "ks_tonality")]]), aes(value)) +
-    geom_histogram() +
-    facet_wrap(~key, scales = 'free_x')
+hist_item_bank <- function(item_bank) {
+  ggplot2::ggplot(tidyr::gather(item_bank), ggplot2::aes(value)) +
+    ggplot2::geom_histogram() +
+    ggplot2::facet_wrap(~key, scales = 'free_x')
 }
-
-
-
 
 

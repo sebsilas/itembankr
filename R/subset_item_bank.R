@@ -1,22 +1,34 @@
 
+#' Subset Item Bank
+#'
+#' @param item_bank
+#' @param item_length
+#' @param quantile_cut
+#' @param span_min
+#' @param span_max
+#' @param tonality
+#'
+#' @return
+#' @export
+#' @examples
 subset_item_bank <- function(item_bank, item_length = NULL, quantile_cut = NULL, span_min = NULL, span_max = NULL, tonality = NULL) {
   # item_bank should be a df read in e.g by read_rds
   item_length <- parse_item_bank_length(item_length, item_bank)
 
-  if (is.null(quantile_cut)) { quantile_cut <- min(item_bank$log.freq) }
+  if (is.null(quantile_cut)) { quantile_cut <- min(item_bank$log_freq) }
   if (is.null(span_min)) { span_min <- min(item_bank$span) }
   if (is.null(span_max)) { span_max <- max(item_bank$span) }
-  if(!is.null(tonality)) { item_bank <- item_bank %>% filter(mode == tonality) }
-  item_bank %>% filter(log.freq > quantile_cut & N >= item_length[1] & N <= item_length[2] &
+  if(!is.null(tonality)) { item_bank <- item_bank %>% dplyr::filter(mode == tonality) }
+  item_bank %>% dplyr::filter(log_freq > quantile_cut & N >= item_length[1] & N <= item_length[2] &
                          span >= span_min & span <= span_max)
 }
 
 top_quantile <- function(item_bank, quantile_cut = .95) {
-  cut <- quantile(item_bank$log.freq, 1-quantile_cut)
+  cut <- quantile(item_bank$log_freq, 1-quantile_cut)
   print(cut)
-  # filt <- item_bank %>% filter(log.freq > cut)
+  # filt <- item_bank %>% dplyr::filter(log_freq > cut)
   # ggplot(filt) +
-  #   geom_histogram(aes(log.freq))
+  #   geom_histogram(aes(log_freq))
   cut
 }
 
