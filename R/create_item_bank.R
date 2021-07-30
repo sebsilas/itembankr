@@ -228,35 +228,3 @@ corpus_to_item_bank <- function(corpus_name,
   }
 }
 
-
-# Berkowitz <- corpus_to_item_bank(corpus_name = 'Berkowitz',
-#                                  midi_file_dir = 'berkowitz_midi_rhythmic_100bpm',
-#                                  musicxml_file_dir = 'berkowitz_musicxml',
-#                                  prefix = 'inst',
-#                                  output_type = 'both')
-
-#main <- Berkowitz("main")
-#ngram <- Berkowitz("ngram")
-
-# usethis::use_data(Berkowitz)
-
-# pca model:
-# names(ivs.agg) <- c('aggiv_entropy', 'aggiv_interval_complexity', 'aggiv_rhythmic_complexity', 'aggiv_tonal_complexity')
-
-#load('data/iv_pca_model.rda')
-#load('data/opti3_model.rda')
-# # model4.2 <- lmer(opti3_scores_lim ~ aggiv_entropy + aggiv_interval_complexity + aggiv_rhythmic_complexity + aggiv_tonal_complexity + length + (1|p_id), data = dat, REML = FALSE)
-#
-#Berk_ngram <- Berkowitz("main")
-#Berk_ngram2 <- Berk_ngram %>% dplyr::select(-c(durations, value, mode, melody, midi_file, musicxml_file))
-
-#pca_pred <- predict(pca, data = Berk_ngram2)
-#
-# Berk_ngram
-#
-# Berk_ngram$difficulty <- predict(model4.2,
-#                               newdata = Berk_ngram,
-#                                re.form = NA # this instructs the model to predict without random effects
-#                               ) %>%
-#                                as.numeric %>% multiply_by(- 1) %>% divide_by(discrimination)
-
