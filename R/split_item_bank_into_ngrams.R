@@ -2,7 +2,6 @@
 
 split_item_bank_into_ngrams <- function(item_bank) {
   warning('This could take a long time.')
-
   ngrams <- apply(item_bank, MARGIN = 1, function(row) {
     ngram_res <- get_ngrams_multiple_sizes(str_mel_to_vector(row['melody'], sep = ","), 8)
     cbind(ngram_res,
@@ -60,6 +59,9 @@ get_ngrams_multiple_sizes <- function(rel_melody, M) {
   }
 
   else {
+    if(length(rel_melody) < M) {
+      M <- length(rel_melody)
+    }
     # grab all ngrams from 1:M for a given relative melody
     ngrams.multi <- dplyr::bind_rows(mapply(get_all_ngrams, N = 1:M, MoreArgs = list(
       "x" = rel_melody),
@@ -68,3 +70,14 @@ get_ngrams_multiple_sizes <- function(rel_melody, M) {
   ngrams.multi
 }
 
+
+# #  doesn't work::
+# mapply(get_all_ngrams, N = 1:8, MoreArgs = list(
+#   "x" = c(60, 61, 66, 67)),
+#   "SIMPLIFY" = FALSE)
+
+
+#  does work::
+# mapply(get_all_ngrams, N = 1:3, MoreArgs = list(
+#   "x" = c(60, 61, 66, 67)),
+#   "SIMPLIFY" = FALSE)

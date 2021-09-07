@@ -207,6 +207,18 @@ produce_arrhythmic_durations <- function(x, dur = .50) {
   res <- rep(dur, length(x))
 }
 
+add_prefix <- function(file_path, prefix = NULL) {
+  if(!is.null(prefix)) {
+    paste0(prefix, '/', file_path)
+  }
+}
+
+remove_prefix <- function(file_path, prefix = NULL) {
+  if(!is.null(prefix)) {
+    stringr::str_remove(file_path, prefix)
+  }
+}
+
 # tests
 
 #rel_bpm_to_seconds(c(2, 2, 4, 2, 2), bpm = 120)

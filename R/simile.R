@@ -20,6 +20,15 @@ edit_sim <- function(s, t){
   1 - edit_dist(s, t)/max(nchar(s), nchar(t))
 }
 
+#' Get all ngrams from a given vector
+#'
+#' @param x
+#' @param N
+#'
+#' @return
+#' @export
+#'
+#' @examples
 get_all_ngrams <- function(x, N = 3){
   l <- length(x) - N + 1
   stopifnot(l > 0)
@@ -29,7 +38,16 @@ get_all_ngrams <- function(x, N = 3){
   })
 }
 
-#as in  Müllensiefen & Frieler (2004)
+#' ngrukkon as in  Müllensiefen & Frieler (2004)
+#'
+#' @param x
+#' @param y
+#' @param N
+#'
+#' @return
+#' @export
+#'
+#' @examples
 ngrukkon <- function(x, y, N = 3){
   #browser()
   x <- get_all_ngrams(x, N = N) %>% dplyr::pull(value)

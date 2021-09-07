@@ -72,10 +72,27 @@ pitch.class.to.midi.list <- list(c(21, 33, 45, 57, 69, 81, 93, 105),
 
 names(pitch.class.to.midi.list) <- pitch.classes
 
+intervals <- as.list(0:12)
+names(intervals) <- c("Unison",
+                      "Minor 2nd",
+                      "Major 2nd",
+                      "Minor 3rd",
+                      "Major 3rd",
+                      "Perfect Fourth",
+                      "Tritone",
+                      "Perfect 5th",
+                      "Minor 6th",
+                      "Major 6th",
+                      "Minor 7th",
+                      "Major 7th",
+                      "Octave")
+
 # usethis::use_data(scientific.pitch.classes, midi.to.pitch.classes.list, sci.notation.to.midi.list,
 # midi.to.pitch.classes.numeric.list, midi.to.sci.notation.list,
 # pitch.class.to.midi.list, pc_labels, pc_labels_sharp, pc_labels_flat,
 # pitch.classes.flat, pitch.classes.sharp,
-# sci.notation.to.midi.list.flat, sci.notation.to.midi.list.sharp, overwrite = TRUE)
-#
+# sci.notation.to.midi.list.flat, sci.notation.to.midi.list.sharp, intervals, overwrite = TRUE)
+
+
+
 
