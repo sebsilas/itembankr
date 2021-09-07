@@ -219,6 +219,39 @@ remove_prefix <- function(file_path, prefix = NULL) {
   }
 }
 
+
+get_division_from_midi_file <- function(file){
+  # borrowed from tuneR's readMidi
+  con <- file(description = file, open = "rb")
+  on.exit(close(con))
+  MThd <- readChar(con, 4)
+  if(MThd != "MThd")
+    stop("No Header Chunk in this Midi (?)")
+  MThd_length <- readBin(con, integer(0), n = 1, size = 4, endian = "big")
+  if(MThd_length != 6)
+    stop("Unexpected Header Chunk size")
+  MThd_format <- readBin(con, integer(0), n = 1, size = 2, endian = "big", signed = FALSE)
+  if(!(MThd_format %in% 0:2))
+    stop("Unexpected Mide file format")
+  MThd_tracks <- readBin(con, integer(0), n = 1, size = 2, endian = "big", signed = FALSE)
+
+  # FIXME: MThd_division < 0 can appear in Midi files with a very different interpretation!
+  MThd_division <- readBin(con, integer(0), n = 1, size = 2, signed = TRUE, endian = "big")
+  if(MThd_division < 0){
+    stop("Midi representation of timing: Frames per second / ticks per frame not yet implemented, please ask the author")
+  }
+  MThd_division
+}
+
+
+ticks_to_ms <- function(ticks, ppq, tempo) {
+  us_per_quarter <- tempo # Tempo in latest Set Tempo event>
+  us_per_tick <- us_per_quarter / ppq
+  seconds_per_tick <- us_per_tick / 1000000
+  seconds <- ticks * seconds_per_tick
+  seconds
+}
+
 # tests
 
 #rel_bpm_to_seconds(c(2, 2, 4, 2, 2), bpm = 120)

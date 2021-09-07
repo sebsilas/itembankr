@@ -73,37 +73,35 @@ convert_pitches_and_durs <- function(pitches, durs, relativeMelodies, relativeDu
        "durations" = durations)
 }
 
-#' Take a MIDI file and return dataframe of the corresponding notes and durations
+
+#' Get notes and durations from a MIDI file
 #'
 #' @param midi_file
-#' @param relativeMelodies
-#' @param relativeDurations
-#' @param ticks
 #' @param prefix
 #'
 #' @return
 #' @export
 #'
 #' @examples
-midi_file_to_notes_and_durations <- function(midi_file, relativeMelodies = TRUE, relativeDurations = FALSE, ticks = 480, prefix = NULL) {
+midi_file_to_notes_and_durations <- function(midi_file, prefix = NULL) {
   midi_file_dat <- tuneR::readMidi(midi_file)
-  tempo <- midi_file_dat %>% dplyr::filter(event == "Set Tempo") %>% dplyr::select(parameterMetaSystem)
-  tempo <- as.numeric(unlist(tempo))
-  tempo <- microseconds_per_beat_to_bpm(tempo)
+
+  tempo <- midi_file_dat %>% dplyr::filter(event == "Set Tempo") %>% dplyr::pull(parameterMetaSystem)
+  tempo <- as.numeric(tempo)
   if(length(tempo) != 1) {
+
     tempo <- tempo[1]
   }
-  note_on <- midi_file_dat %>% dplyr::filter(event == "Note On")
-  pitches <- as.vector(unlist(note_on %>% dplyr::select(parameter1)))
-  durations <- as.vector(unlist(note_on %>% dplyr::select(time) %>% dplyr::transmute(duration = c(diff(time), diff(c(time[length(time)-1], time[length(note_on$time)])) ) )))
-  warning('Not sure if this constant, 480 ticks, applies universally to MIDI files.')
-  converted_pitches_and_durs <- convert_pitches_and_durs(pitches, durations, relativeMelodies, relativeDurations, tempo)
-  pitches <- converted_pitches_and_durs$pitches
-  durations <- converted_pitches_and_durs$durations
-  data.frame(melody = paste0(pitches, collapse = ","),
-             durations = paste0(durations = durations, collapse = ","),
-             midi_file = remove_prefix(midi_file, prefix)
-             )
+  tempo_bpm <- microseconds_per_beat_to_bpm(tempo)
+
+  notes <- tuneR::getMidiNotes(midi_file_dat) %>%
+    dplyr::mutate(onset = ticks_to_ms(time, ppq = get_division_from_midi_file(midi_file), tempo = tempo),
+                  dur = ticks_to_ms(length, ppq = get_division_from_midi_file(midi_file), tempo = tempo),
+                  interval = c(NA, diff(note)))
+
+  notes_and_durs <- notes %>% dplyr::summarise(notes = paste0(note, collapse = ","),
+                                               dur = paste0(dur, collapse = ",")) %>%
+    dplyr::mutate(midi_file = remove_prefix(midi_file, prefix))
 }
 
 
@@ -275,5 +273,8 @@ corpus_to_item_bank <- function(corpus_name,
 
 }
 
+
+# test <- midi_file_to_notes_and_durations("inst/testing/sung_transcription_files/1_MA_1.MID", "inst")
+# test2 <- midi_file_to_notes_and_durations("inst/item_banks/Berkowitz/berkowitz_midi_rhythmic/Berkowitz1.mid",  "inst")
 
 

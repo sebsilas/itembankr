@@ -2,15 +2,9 @@
 % Please edit documentation in R/create_item_bank.R
 \name{midi_file_to_notes_and_durations}
 \alias{midi_file_to_notes_and_durations}
-\title{Take a MIDI file and return dataframe of the corresponding notes and durations}
+\title{Get notes and durations from a MIDI file}
 \usage{
-midi_file_to_notes_and_durations(
-  midi_file,
-  relativeMelodies = TRUE,
-  relativeDurations = FALSE,
-  ticks = 480,
-  prefix = NULL
-)
+midi_file_to_notes_and_durations(midi_file, prefix = NULL)
 }
 \arguments{
 \item{prefix}{}
@@ -19,5 +13,5 @@ midi_file_to_notes_and_durations(
 
 }
 \description{
-Take a MIDI file and return dataframe of the corresponding notes and durations
+Get notes and durations from a MIDI file
 }
