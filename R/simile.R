@@ -100,7 +100,7 @@ bootstrap_implicit_harmonies <- function(pitch_vec, segmentation = NULL, sample_
       get_implicit_harmonies(pv, only_winner = T)
     })
   best_key <- bs %>% dplyr::count(key) %>% dplyr::arrange(desc(n)) %>% dplyr::pull(key)
-  bs %>% filter(key == best_key[1]) %>% head(1)
+  bs %>% dplyr::filter(key == best_key[1]) %>% head(1)
 }
 
 #' Classify ioi class (see Frieler.. )
