@@ -11,7 +11,9 @@
 #' @return
 #' @export
 #' @examples
-subset_item_bank <- function(item_bank, item_length = NULL, quantile_cut = NULL, span_min = NULL, span_max = NULL, tonality = NULL) {
+subset_item_bank <- function(item_bank, item_length = NULL, quantile_cut = NULL,
+                             span_min = NULL, span_max = NULL, tonality = NULL,
+                             min_mean_duration = 0) {
   # item_bank should be a df read in e.g by read_rds
   item_length <- parse_item_bank_length(item_length, item_bank)
 
@@ -20,8 +22,9 @@ subset_item_bank <- function(item_bank, item_length = NULL, quantile_cut = NULL,
   if (is.null(span_max)) { span_max <- max(item_bank$span) }
   if(!is.null(tonality)) { item_bank <- item_bank %>% dplyr::filter(mode == tonality) }
   item_bank %>% dplyr::filter(log_freq > quantile_cut & N >= item_length[1] & N <= item_length[2] &
-                         span >= span_min & span <= span_max)
+                         span >= span_min & span <= span_max & mean_duration > min_mean_duration)
 }
+
 
 top_quantile <- function(item_bank, quantile_cut = .95) {
   cut <- quantile(item_bank$log_freq, 1-quantile_cut)
@@ -36,17 +39,17 @@ top_quantile <- function(item_bank, quantile_cut = .95) {
 parse_item_bank_length <- function(specified_length, item_bank) {
   if (is.null(specified_length)) {
     specified_length <- c(1, max(item_bank$N))
-  }
-  else if (length(specified_length) == 1) {
+  } else if (length(specified_length) == 1) {
     specified_length <- c(specified_length, specified_length)
-  }
-  else if (is.na(specified_length[2])) { # the NULL gets coerced to NA
+  } else if (is.na(specified_length[2])) { # the NULL gets coerced to NA
     specified_length[2] <- max(item_bank$N)
-  }
-  else if(length(specified_length) > 2) {
+  } else if (is.na(specified_length[1])) { # the NULL gets coerced to NA
+    specified_length[1] <- min(item_bank$N)
+  } else if(length(specified_length) == 2 & !all(is.na(specified_length))) {
+    specified_length
+  } else if(length(specified_length) > 2) {
     specified_length <- c(specified_length[1], specified_length[length(specified_length)])
-  }
-  else {
+  } else {
     stop('Unknown length format')
   }
 }
@@ -67,4 +70,6 @@ parse_item_bank_length <- function(specified_length, item_bank) {
 
 
 #subset_item_bank(item_bank = WJD)
+# subset_item_bank(item_bank = Berkowitz("phrases"))
+
 

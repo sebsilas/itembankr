@@ -24,5 +24,7 @@ Imports:
     magrittr,
     lme4,
     lmerTest,
-    psych
+    psych,
+    visNetwork,
+    DT
 RoxygenNote: 7.1.1

@@ -11,17 +11,24 @@ rel_to_abs_mel <- function(rel_mel, start_note = 60) {
   c(0, cumsum(rel_mel)) + start_note
 }
 
+
 #' Convert a string of a melody, separated by a to a vector
 #'
 #' @param str_mel
 #' @param sep
+#' @param numeric
 #'
 #' @return
 #' @export
 #'
 #' @examples
-str_mel_to_vector <- function(str_mel, sep = ",") {
-  vector_mel <- as.numeric(unlist(strsplit(str_mel, sep)))
+str_mel_to_vector <- function(str_mel, sep = ",", numeric = TRUE) {
+  vector_mel <- unlist(strsplit(str_mel, sep))
+  if(numeric) {
+    as.numeric(vector_mel)
+  } else {
+    vector_mel
+  }
 }
 
 #' Convert MIDI note to pitch class
@@ -120,12 +127,27 @@ sci_notation_to_midi_low_level <- function(sci_notation) {
 }
 
 
-pitch_class_to_numeric_pitch.class <- function(pitch_class) {
+pitch_class_to_numeric_pitch_class <- function(pitch_class) {
   which(pitch.classes == pitch_class)
 }
 
-pitch_class_to_midi.notes <- function(pitch_class) {
-  pitch.class.to.midi.list[[pitch_class]]
+
+#' Return MIDI note(s) corresponding to a given pitch class
+#'
+#' @param pitch_class
+#'
+#' @return
+#' @export
+#'
+#' @examples
+pitch_class_to_midi_notes <- function(pitch_class) {
+  if(length(pitch_class) == 1) {
+    pitch.class.to.midi.list[[pitch_class]]
+  } else {
+    lapply(pitch_class, function(x) {
+      pitch.class.to.midi.list[[x]]
+    })
+  }
 }
 
 

@@ -65,7 +65,7 @@ sim_matrix_to_graph <- function(melody) {
 
 item_bank_explorer <- function(item_bank) {
 
-  ui <- basicPage(
+  ui <- shiny::basicPage(
 
     musicassessr::musicassessr_js_scripts(api_url = "https://255uxe6ajl.execute-api.us-east-1.amazonaws.com/api",
                                           bucket_name = "shinny-app-source-41630",
@@ -73,13 +73,13 @@ item_bank_explorer <- function(item_bank) {
                                           identity_pool_id = "us-east-1:feecdf7e-cdf6-416f-94d0-a6de428c8c6b",
                                           destination_bucket = "shinny-app-destination-41630"),
 
-    h2("Corpus Explorer"),
+    shiny::tags$h2("Corpus Explorer"),
 
-    present_stimuli_midi_notes_visual(stimuli = 60:65, present_div = FALSE),
+    musicassessr::present_stimuli_midi_notes_visual(stimuli = 60:65, present_div = FALSE),
 
-    visNetworkOutput("network"),
+    visNetwork::visNetworkOutput("network"),
 
-    htmlOutput('melodyNotation'),
+    shiny::htmlOutput('melodyNotation'),
 
     DT::dataTableOutput("melodies")
 
@@ -123,7 +123,7 @@ item_bank_explorer <- function(item_bank) {
 
   }
 
-  shinyApp(ui, server)
+  shiny::shinyApp(ui, server)
 }
 
 

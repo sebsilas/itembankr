@@ -1,18 +1,33 @@
 
 
 split_item_bank_into_ngrams <- function(item_bank) {
+
   warning('This could take a long time.')
   ngrams <- apply(item_bank, MARGIN = 1, function(row) {
+
     ngram_res <- get_ngrams_multiple_sizes(str_mel_to_vector(row['melody'], sep = ","), 8)
-    cbind(ngram_res,
-          data.frame(midi_file = row['midi_file'],
-                     musicxml_file = row['musicxml_file'],
-                     durations = row['durations'])
-    )
+
+    if(!is.null(row['midi_file']) & !is.na(row['midi_file'])) {
+      ngram_res <-  cbind(ngram_res, midi_file = row['midi_file'])
+    }
+    if(!is.null(row['musicxml_file']) & !is.na(row['musicxml_file'])) {
+      ngram_res <- cbind(ngram_res, data.frame(musicxml_file = row['musicxml_file']))
+    }
+    if(!is.null(row['durations']) & !is.na(row['durations'])) {
+      ngram_res <- cbind(ngram_res, data.frame(durations = row['durations']))
+    }
+    ngram_res
   })
+
   ngrams <- dplyr::bind_rows(ngrams)
+  row.names(ngrams) <- 1:nrow(ngrams)
   ngrams <- clip_durations(ngrams)
-  ngrams <- ngrams %>% dplyr::rename(melody = value)
+
+  if("value" %in% names(ngrams)) {
+    ngrams <- ngrams %>% dplyr::rename(melody = value)
+  }
+
+  ngrams
 }
 
 
@@ -36,12 +51,16 @@ count_freqs <- function(item_bank) {
 
 clip_durations <- function(df) {
   durs <- apply(df, MARGIN = 1, function(row) {
-    start <- as.numeric(row['start'])
-    N <- as.numeric(row['N'])
-    end <- start + N
-    dur_v <- str_mel_to_vector(row['durations'], ",")
-    res <- dur_v[start:(end-1)]
-    paste0(res, collapse = ",")
+    if(is.na(row['start'])) {
+      row['durations']
+    } else {
+      start <- as.numeric(row['start'])
+      N <- as.numeric(row['N'])
+      end <- start + N + 1
+      dur_v <- str_mel_to_vector(row['durations'], ",")
+      res <- dur_v[start:(end-1)]
+      paste0(res, collapse = ",")
+    }
   })
 
   df$durations <- durs
@@ -51,11 +70,13 @@ clip_durations <- function(df) {
 get_ngrams_multiple_sizes <- function(rel_melody, M) {
 
   if (length(rel_melody) == 1) {
-    ngrams.multi <- rel_melody
+    #ngrams.multi <- rel_melody
+    ngrams.multi <- tidyr::tibble(start = NA, N = 1, value = paste(rel_melody, collapse = ","))
   }
 
   else if (length(rel_melody) == 2) {
-    ngrams.multi <- as.list(rel_melody)
+    # ngrams.multi <- as.list(rel_melody)
+    ngrams.multi <- tidyr::tibble(start = NA, N = 2, value = paste(rel_melody, collapse = ","))
   }
 
   else {
@@ -69,15 +90,3 @@ get_ngrams_multiple_sizes <- function(rel_melody, M) {
   }
   ngrams.multi
 }
-
-
-# #  doesn't work::
-# mapply(get_all_ngrams, N = 1:8, MoreArgs = list(
-#   "x" = c(60, 61, 66, 67)),
-#   "SIMPLIFY" = FALSE)
-
-
-#  does work::
-# mapply(get_all_ngrams, N = 1:3, MoreArgs = list(
-#   "x" = c(60, 61, 66, 67)),
-#   "SIMPLIFY" = FALSE)

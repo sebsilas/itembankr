@@ -4,6 +4,8 @@ get_melody_features <- function(df, mel_sep = ",", durationMeasures = TRUE) {
   # melody: a relative melody e.g 2, 2, -1, 3
   # freq: a count of the number of occurences of the dataset from which it came
 
+  df <- df[!is.na(df$melody), ]
+
   df$log_freq <- get_log_freq(df$rel_freq)
 
   df$N <- get_stimuli_length(df$melody, mel_sep)
@@ -22,6 +24,12 @@ get_melody_features <- function(df, mel_sep = ",", durationMeasures = TRUE) {
     duration_df <- dplyr::bind_rows(lapply(df$durations, get_duration_measures))
     names(duration_df) <- c("d.entropy", "d.eq.trans")
     df <- dplyr::bind_cols(df, duration_df)
+
+    df <- df %>% dplyr::rowwise() %>%
+      dplyr::mutate(mean_duration = mean(itembankr::str_mel_to_vector(durations))) %>% dplyr::ungroup()
+
+    print(df)
+    print('boom df')
   }
 
   # difficulty measures from Klaus
@@ -32,14 +40,11 @@ get_melody_features <- function(df, mel_sep = ",", durationMeasures = TRUE) {
   span <- lapply(df$melody, function(x) sum(abs(range(rel_to_abs_mel(str_mel_to_vector(x, ","), start_note = 1)))) )
   df$span <- unlist(span)
 
-  # remove NA columns with all NAs
-  #all_na <- function(x) any(!is.na(x))
-  #df <- df %>% select_if(all_na)
 
   numeric_vars <- c("log_freq", "step.cont.glob.dir", "step.cont.glob.var",
                     "step.cont.loc.var", "tonal.clarity", "tonal.spike", "tonalness", "mean_int_size",
                     "int_range", "dir_change", "mean_dir_change", "int_variety", "pitch_variety",
-                    "mean_run_length", "d.entropy", "d.eq.trans")
+                    "mean_run_length", "d.entropy", "d.eq.trans", "mean_duration")
 
   # round all numeric columns to two decimal places
   df <- df %>% dplyr::mutate_at(dplyr::vars(numeric_vars), dplyr::funs(round(., 2)))
@@ -96,8 +101,10 @@ get_tonality <- function(melody, sep) {
 
 # add local stepwise contour
 get_step_contour <- function(melody, relative = TRUE) {
-  # wrap the FANTASTIC functions and add in some default durations
+  print('get_step_contour')
+  print(melody)
 
+  # wrap the FANTASTIC functions and add in some default durations
   if(relative) {
     melody <- rel_to_abs_mel(melody)
   }
@@ -183,5 +190,3 @@ hist_item_bank <- function(item_bank) {
     ggplot2::geom_histogram() +
     ggplot2::facet_wrap(~key, scales = 'free_x')
 }
-
-

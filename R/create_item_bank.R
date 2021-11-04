@@ -48,6 +48,7 @@ create_item_bank_from_files <- function(corpus_name, midi_file_dir = NULL, music
     stop("File extension not recognised. Currently only .mid or .musicxml supported.")
   }
 
+
   res$musicxml_file <- unlist(lapply(res$musicxml_file, function(x) if(substr(x, 1, 1) == "/") {
     substr(x, 2, nchar(x))
   }))
@@ -55,6 +56,8 @@ create_item_bank_from_files <- function(corpus_name, midi_file_dir = NULL, music
   res$midi_file <- unlist(lapply(res$midi_file, function(x) if(substr(x, 1, 1) == "/") {
     substr(x, 2, nchar(x))
   }))
+
+  res <- res %>% dplyr::rowwise() %>% dplyr::mutate(melody = paste0(diff(str_mel_to_vector(notes)), collapse = ",")) %>% dplyr::ungroup()
   res
 }
 
@@ -88,19 +91,18 @@ midi_file_to_notes_and_durations <- function(midi_file, prefix = NULL) {
 
   tempo <- midi_file_dat %>% dplyr::filter(event == "Set Tempo") %>% dplyr::pull(parameterMetaSystem)
   tempo <- as.numeric(tempo)
-  if(length(tempo) != 1) {
 
+  if(length(tempo) != 1) {
+    tempo_bpm <- microseconds_per_beat_to_bpm(tempo)
     tempo <- tempo[1]
   }
-  tempo_bpm <- microseconds_per_beat_to_bpm(tempo)
-
   notes <- tuneR::getMidiNotes(midi_file_dat) %>%
     dplyr::mutate(onset = ticks_to_ms(time, ppq = get_division_from_midi_file(midi_file), tempo = tempo),
-                  dur = ticks_to_ms(length, ppq = get_division_from_midi_file(midi_file), tempo = tempo),
+                  durations = ticks_to_ms(length, ppq = get_division_from_midi_file(midi_file), tempo = tempo),
                   interval = c(NA, diff(note)))
 
   notes_and_durs <- notes %>% dplyr::summarise(notes = paste0(note, collapse = ","),
-                                               dur = paste0(dur, collapse = ",")) %>%
+                                               durations = paste0(round(durations, 2), collapse = ",")) %>%
     dplyr::mutate(midi_file = remove_prefix(midi_file, prefix))
 }
 
@@ -142,9 +144,10 @@ add_phrase_info <- function(note_track, end_track){
 
 create_phrases_db <- function(corpus_name, midi_file_dir, compute_melody_features = TRUE, prefix) {
 
-  #files <- list.files(midi_file_dir, full.names = TRUE)
-  # to keep IDs correct
-  files <- paste0(midi_file_dir, "/", corpus_name, 1:629, ".mid")
+  no_files <- length(list.files(midi_file_dir, full.names = TRUE, pattern = "\\.mid$"))
+
+  # to keep IDs in correct order
+  files <- paste0(midi_file_dir, "/", corpus_name, 1:no_files, ".mid")
 
   phrase <- dplyr::bind_rows(lapply(files, function(f) {
 
@@ -198,6 +201,7 @@ create_phrases_db <- function(corpus_name, midi_file_dir, compute_melody_feature
     phrases_freq_db <- count_freqs(phrases)
     phrases <- get_melody_features(phrases_freq_db, mel_sep = ",", durationMeasures = TRUE)
   }
+  phrases
 
 }
 
@@ -230,6 +234,7 @@ corpus_to_item_bank <- function(corpus_name,
                                 musicxml_file_dir = NULL,
                                 prefix = NULL,
                                 corpus_df = NULL,
+                                phrases_db = NULL,
                                 output_type = c("both", "ngram", "phrases"),
                                 launch_app = TRUE) {
 
@@ -237,22 +242,29 @@ corpus_to_item_bank <- function(corpus_name,
 
   if(!is.null(midi_file_dir) | !is.null(musicxml_file_dir)) {
 
-  files_db <- create_item_bank_from_files(corpus_name = corpus_name,
-                                          midi_file_dir = midi_file_dir,
-                                          musicxml_file_dir = musicxml_file_dir,
-                                          prefix = prefix)
+    files_db <- create_item_bank_from_files(corpus_name = corpus_name,
+                                            midi_file_dir = midi_file_dir,
+                                            musicxml_file_dir = musicxml_file_dir,
+                                            prefix = prefix)
 
-  ngram_db <- split_item_bank_into_ngrams(files_db)
-  freq_db <- count_freqs(ngram_db)
-  main_db <- get_melody_features(freq_db, mel_sep = ",", durationMeasures = TRUE)
-  phrases_db <- create_phrases_db(corpus_name = corpus_name, midi_file_dir = add_prefix(paste0('item_banks/', corpus_name, '/', midi_file_dir), prefix), prefix = prefix)
+    ngram_db <- split_item_bank_into_ngrams(files_db)
+    freq_db <- count_freqs(ngram_db)
+    main_db <- get_melody_features(freq_db, mel_sep = ",", durationMeasures = TRUE)
+
+    if(is.null(phrases_db)) {
+      phrases_db <- create_phrases_db(corpus_name = corpus_name, midi_file_dir = add_prefix(paste0('item_banks/', corpus_name, '/', midi_file_dir), prefix), prefix = prefix)
+    }
+
 
   } else {
     files_db <- NA
     ngram_db <- split_item_bank_into_ngrams(corpus_df)
     freq_db <- count_freqs(ngram_db)
     main_db <- get_melody_features(freq_db, mel_sep = ",", durationMeasures = TRUE)
+    phrases_db <- count_freqs(phrases_db)
+    phrases_db <- get_melody_features(phrases_db, mel_sep = ",", durationMeasures = TRUE)
   }
+
 
   # return a function which can access the different dfs
   item_bank <- function(key) {
@@ -272,6 +284,8 @@ corpus_to_item_bank <- function(corpus_name,
   item_bank
 
 }
+
+#hist(WJD("phrases")$mean_duration)
 
 
 # test <- midi_file_to_notes_and_durations("inst/testing/sung_transcription_files/1_MA_1.MID", "inst")

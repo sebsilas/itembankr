@@ -10,7 +10,8 @@ subset_item_bank(
   quantile_cut = NULL,
   span_min = NULL,
   span_max = NULL,
-  tonality = NULL
+  tonality = NULL,
+  min_mean_duration = 0
 )
 }
 \arguments{

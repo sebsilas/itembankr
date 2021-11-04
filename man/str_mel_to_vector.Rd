@@ -4,10 +4,10 @@
 \alias{str_mel_to_vector}
 \title{Convert a string of a melody, separated by a to a vector}
 \usage{
-str_mel_to_vector(str_mel, sep = ",")
+str_mel_to_vector(str_mel, sep = ",", numeric = TRUE)
 }
 \arguments{
-\item{sep}{}
+\item{numeric}{}
 }
 \value{
 
