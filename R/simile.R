@@ -58,8 +58,18 @@ ngrukkon <- function(x, y, N = 3){
   1 - sum(abs(tx  - ty))/(length(x) + length(y))
 }
 
-#Krumhansl-Schmuckler algorithm
+#' get harmonies via the Krumhansl-Schmuckler algorithm
+#'
+#' @param pitch_vec
+#' @param segmentation
+#' @param only_winner
+#'
+#' @return
+#' @export
+#'
+#' @examples
 get_implicit_harmonies <- function(pitch_vec, segmentation = NULL, only_winner = T){
+  #Krumhansl-Schmuckler algorithm
   ks_weights_major <- c(6.33, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88)
   ks_weights_minor <- c(6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17)
   if(!is.null(segmentation)){
