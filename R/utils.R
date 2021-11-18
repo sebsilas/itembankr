@@ -127,6 +127,14 @@ sci_notation_to_midi_low_level <- function(sci_notation) {
 }
 
 
+#' Convert pitch classes to numeric pitch classes
+#'
+#' @param pitch_class
+#'
+#' @return
+#' @export
+#'
+#' @examples
 pitch_class_to_numeric_pitch_class <- function(pitch_class) {
   which(pitch.classes == pitch_class)
 }
