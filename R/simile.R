@@ -92,8 +92,8 @@ get_implicit_harmonies <- function(pitch_vec, segmentation = NULL, only_winner =
       #browser()
       w_major <- cor.test(pitch_freq, ks_weights_major[((0:11 - t) %% 12) + 1]) %>% broom::tidy() %>% dplyr::pull(estimate)
       w_minor <- cor.test(pitch_freq, ks_weights_minor[((0:11 - t) %% 12) + 1]) %>% broom::tidy() %>% dplyr::pull(estimate)
-      dplyr::bind_rows(tidyr::tibble(transposition = t,  match = w_major, type = "major", key = sprintf("%s-maj", pc_labels[t+1])),
-                tidyr::tibble(transposition = t,  match = w_minor, type = "minor", key = sprintf("%s-min", pc_labels[t+1])))
+      dplyr::bind_rows(tidyr::tibble(transposition = t,  match = w_major, type = "major", key = sprintf("%s-maj", pc_labels_flat[t+1])),
+                tidyr::tibble(transposition = t,  match = w_minor, type = "minor", key = sprintf("%s-min", pc_labels_flat[t+1])))
     }) %>% dplyr::arrange(desc(match))
   if(only_winner){
     return(correlations[1,])

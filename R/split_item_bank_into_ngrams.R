@@ -67,6 +67,15 @@ clip_durations <- function(df) {
   df
 }
 
+#' Get ngrams of multiple sizes
+#'
+#' @param rel_melody
+#' @param M
+#'
+#' @return
+#' @export
+#'
+#' @examples
 get_ngrams_multiple_sizes <- function(rel_melody, M) {
 
   if (length(rel_melody) == 1) {
