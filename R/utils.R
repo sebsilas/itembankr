@@ -136,9 +136,14 @@ sci_notation_to_midi_low_level <- function(sci_notation) {
 #'
 #' @examples
 pitch_class_to_numeric_pitch_class <- function(pitch_class) {
-  which(pitch.classes == pitch_class)
+  if(substr(pitch_class, nchar(pitch_class), nchar(pitch_class)) == "b") {
+    which(pitch.classes.flat == pitch_class)
+  } else {
+    which(pitch.classes.sharp == pitch_class)
+  }
 }
 
+# itembankr::pitch_class_to_numeric_pitch_class("Gb")
 
 #' Return MIDI note(s) corresponding to a given pitch class
 #'

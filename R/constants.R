@@ -70,7 +70,16 @@ pitch.class.to.midi.list <- list(c(21, 33, 45, 57, 69, 81, 93, 105),
 
 
 
-names(pitch.class.to.midi.list) <- pitch.classes
+names(pitch.class.to.midi.list) <- pitch.classes.flat
+
+# manually add sharps
+pitch.class.to.midi.list[["A#"]] <- pitch.class.to.midi.list$Bb
+pitch.class.to.midi.list[["C#"]] <- pitch.class.to.midi.list$Db
+pitch.class.to.midi.list[["D#"]] <- pitch.class.to.midi.list$Eb
+pitch.class.to.midi.list[["F#"]] <- pitch.class.to.midi.list$Gb
+pitch.class.to.midi.list[["G#"]] <- pitch.class.to.midi.list$Ab
+
+# itembankr::pitch_class_to_midi_notes("Gb")
 
 intervals <- as.list(0:12)
 names(intervals) <- c("Unison",
@@ -92,7 +101,7 @@ names(intervals) <- c("Unison",
 # pitch.class.to.midi.list, pc_labels, pc_labels_sharp, pc_labels_flat,
 # pitch.classes.flat, pitch.classes.sharp,
 # sci.notation.to.midi.list.flat, sci.notation.to.midi.list.sharp, intervals, overwrite = TRUE)
-
+#
 
 
 
