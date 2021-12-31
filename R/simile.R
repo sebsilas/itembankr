@@ -140,8 +140,8 @@ rhythfuzz <- function(dur_vec1, dur_vec2){
 
 harmcore <- function(pitch_vec1, pitch_vec2, segmentation1 = NULL, segmentation2 = NULL){
   #browser()
-  implicit_harm1 <- get_implicit_harmonies(pitch_vec1, segmentation1) %>% dplyr::pull(key)
-  implicit_harm2 <- get_implicit_harmonies(pitch_vec2, segmentation2) %>% dplyr::pull(key)
+  implicit_harm1 <- get_implicit_harmonies(pitch_vec1, segmentation1, only_winner = FALSE) %>% dplyr::pull(key)
+  implicit_harm2 <- get_implicit_harmonies(pitch_vec2, segmentation2, only_winner = FALSE) %>% dplyr::pull(key)
   common_keys <- levels(factor(union(implicit_harm1, implicit_harm2)))
   implicit_harm1 <- factor(implicit_harm1, levels = common_keys) %>% as.integer()
   implicit_harm2 <- factor(implicit_harm2, levels = common_keys) %>% as.integer()
@@ -195,6 +195,7 @@ find_best_transposition <- function(pitch_vec1, pitch_vec2){
   sims %>% dplyr::arrange(sim) %>% head(1) %>% dplyr::pull(transposition)
 }
 
+
 #' Score using the opti3 measure of similarity
 #'
 #' @param pitch_vec1
@@ -203,12 +204,13 @@ find_best_transposition <- function(pitch_vec1, pitch_vec2){
 #' @param dur_vec2
 #' @param N
 #' @param use_bootstrap
+#' @param return_components
 #'
 #' @return
 #' @export
 #'
 #' @examples
-opti3 <- function(pitch_vec1, dur_vec1, pitch_vec2, dur_vec2, N = 3, use_bootstrap = T){
+opti3 <- function(pitch_vec1, dur_vec1, pitch_vec2, dur_vec2, N = 3, use_bootstrap = TRUE, return_components = FALSE){
   pitch_vec1 <- round(pitch_vec1)
   pitch_vec2 <- round(pitch_vec2)
   v_ngrukkon <- ngrukkon(pitch_vec1, pitch_vec2, N = N)
@@ -230,7 +232,17 @@ opti3 <- function(pitch_vec1, dur_vec1, pitch_vec2, dur_vec2, N = 3, use_bootstr
 
   opti3 <- max(min(opti3, 1), 0)
 
+  if(return_components) {
+    list("opti3" = opti3,
+        "ngrukkon" = v_ngrukkon,
+        "rhythfuzz" = v_rhythfuzz,
+        "harmcore" = v_harmcore)
+  } else {
+    opti3
+  }
+
 }
+
 
 #read a pYIN note track and make it nice
 read_melody <- function(fname){
