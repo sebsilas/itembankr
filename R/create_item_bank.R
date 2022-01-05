@@ -114,7 +114,7 @@ midi_file_to_notes_and_durations <- function(midi_file, prefix = NULL, string_df
   }
 
   if(produce_extra_melodic_features) {
-    out %>% musicassessr::produce_extra_melodic_features()
+    out <- out %>% musicassessr::produce_extra_melodic_features()
   }
   out
 }
