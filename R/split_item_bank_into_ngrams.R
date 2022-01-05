@@ -1,5 +1,4 @@
 
-
 split_item_bank_into_ngrams <- function(item_bank) {
 
   warning('This could take a long time.')
@@ -30,43 +29,6 @@ split_item_bank_into_ngrams <- function(item_bank) {
   ngrams
 }
 
-
-count_freqs <- function(item_bank) {
-
-  values_counts <- item_bank %>%
-    dplyr::add_count(melody, name = "freq") %>%
-      dplyr::arrange(dplyr::desc(freq))
-
-  total_freq <- sum(values_counts$freq)
-
-  # add N
-  values_counts$N <- lapply(values_counts$melody, function(x) length(str_mel_to_vector(x, ",")))
-
-  values_counts <- values_counts %>% dplyr::mutate(rel_freq = freq/total_freq)
-}
-
-
-# internal functions
-
-
-clip_durations <- function(df) {
-  durs <- apply(df, MARGIN = 1, function(row) {
-    if(is.na(row['start'])) {
-      row['durations']
-    } else {
-      start <- as.numeric(row['start'])
-      N <- as.numeric(row['N'])
-      end <- start + N + 1
-      dur_v <- str_mel_to_vector(row['durations'], ",")
-      res <- dur_v[start:(end-1)]
-      paste0(res, collapse = ",")
-    }
-  })
-
-  df$durations <- durs
-  df
-}
-
 #' Get ngrams of multiple sizes
 #'
 #' @param rel_melody
@@ -93,9 +55,33 @@ get_ngrams_multiple_sizes <- function(rel_melody, M) {
       M <- length(rel_melody)
     }
     # grab all ngrams from 1:M for a given relative melody
-    ngrams.multi <- dplyr::bind_rows(mapply(get_all_ngrams, N = 1:M, MoreArgs = list(
+    ngrams.multi <- dplyr::bind_rows(mapply(musicassessr::get_all_ngrams, N = 1:M, MoreArgs = list(
       "x" = rel_melody),
       "SIMPLIFY" = FALSE))
   }
   ngrams.multi
 }
+
+
+# internal functions
+
+
+clip_durations <- function(df) {
+  durs <- apply(df, MARGIN = 1, function(row) {
+    if(is.na(row['start'])) {
+      row['durations']
+    } else {
+      start <- as.numeric(row['start'])
+      N <- as.numeric(row['N'])
+      end <- start + N + 1
+      dur_v <- str_mel_to_vector(row['durations'], ",")
+      res <- dur_v[start:(end-1)]
+      paste0(res, collapse = ",")
+    }
+  })
+
+  df$durations <- durs
+  df
+}
+
+

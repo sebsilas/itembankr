@@ -128,6 +128,25 @@ musicxml_file_to_notes_and_durations <- function(musicxml_file, relativeMelodies
 }
 
 
+
+#' Segment a note track by adding phraseend and phrasebeg columns with boolean markers.
+#'
+#' @param note_track a data frame with an "onset" column
+#'
+#' @return
+#' @export
+#'
+#' @examples
+add_phrase_info2 <- function(note_track){
+  # this is the original function from KF
+  note_track <- note_track %>% dplyr::mutate(ioi = c(diff(onset), NA), note_pos = 1:n())
+  outliers <- note_track %>% dplyr::pull(ioi) %>% boxplot(plot = FALSE) %>% `[[`("out")
+  outliers <- outliers[outliers > .65]
+  note_track %>%
+    dplyr::mutate(phrasend = as.numeric(ioi >.96 | ioi %in% outliers),
+           phrasbeg = as.numeric(dplyr::lag(phrasend) | note_pos ==1))
+}
+
 add_phrase_info <- function(note_track, end_track){
 
   note_track <- note_track %>% dplyr::mutate(onset = time/1000)
@@ -284,11 +303,4 @@ corpus_to_item_bank <- function(corpus_name,
   item_bank
 
 }
-
-#hist(WJD("phrases")$mean_duration)
-
-
-# test <- midi_file_to_notes_and_durations("inst/testing/sung_transcription_files/1_MA_1.MID", "inst")
-# test2 <- midi_file_to_notes_and_durations("inst/item_banks/Berkowitz/berkowitz_midi_rhythmic/Berkowitz1.mid",  "inst")
-
 

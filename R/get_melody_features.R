@@ -1,8 +1,15 @@
+#' For a db of melodies, get melodic features
+#'
+#' @param df with column "melody" as a relative melody e.g, 2, 2, -1, 3 and "freq" a count of the number of occurrences of the dataset from which it came
+#' @param mel_sep
+#' @param durationMeasures
+#'
+#' @return
+#' @export
+#'
+#' @examples
 get_melody_features <- function(df, mel_sep = ",", durationMeasures = TRUE) {
 
-    # the in df should contain the following columns:
-  # melody: a relative melody e.g 2, 2, -1, 3
-  # freq: a count of the number of occurences of the dataset from which it came
 
   df <- df[!is.na(df$melody), ]
 
@@ -28,8 +35,6 @@ get_melody_features <- function(df, mel_sep = ",", durationMeasures = TRUE) {
     df <- df %>% dplyr::rowwise() %>%
       dplyr::mutate(mean_duration = mean(itembankr::str_mel_to_vector(durations))) %>% dplyr::ungroup()
 
-    print(df)
-    print('boom df')
   }
 
   # difficulty measures from Klaus
@@ -64,6 +69,22 @@ get_rel_freq <- function(freq_col) {
   cat("Sanity check, this should at to 1: ", sum(unlist(res)))
   as.numeric(res)
 }
+
+
+count_freqs <- function(item_bank) {
+
+  values_counts <- item_bank %>%
+    dplyr::add_count(melody, name = "freq") %>%
+    dplyr::arrange(dplyr::desc(freq))
+
+  total_freq <- sum(values_counts$freq)
+
+  # add N
+  values_counts$N <- lapply(values_counts$melody, function(x) length(str_mel_to_vector(x, ",")))
+
+  values_counts <- values_counts %>% dplyr::mutate(rel_freq = freq/total_freq)
+}
+
 
 get_log_freq <- function(rel_freq_col) {
   # log freq
@@ -101,8 +122,6 @@ get_tonality <- function(melody, sep) {
 
 # add local stepwise contour
 get_step_contour <- function(melody, relative = TRUE) {
-  print('get_step_contour')
-  print(melody)
 
   # wrap the FANTASTIC functions and add in some default durations
   if(relative) {
