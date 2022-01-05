@@ -29,6 +29,8 @@ split_item_bank_into_ngrams <- function(item_bank) {
   ngrams
 }
 
+
+
 #' Get ngrams of multiple sizes
 #'
 #' @param rel_melody
@@ -61,6 +63,7 @@ get_ngrams_multiple_sizes <- function(rel_melody, M) {
   }
   ngrams.multi
 }
+
 
 
 # internal functions
