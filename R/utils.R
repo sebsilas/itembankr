@@ -106,7 +106,6 @@ sci_notation_to_midi <- function(sci_notation) {
   midi
 }
 
-#sci_notation_to_midi(c("C#4", "Eb4", "G#4", "Bb4", "A#4", "Db4", "E#4", "Gb2"))
 
 
 sci_notation_to_midi_low_level <- function(sci_notation) {
@@ -292,3 +291,6 @@ ticks_to_ms <- function(ticks, ppq, tempo) {
 #rel_bpm_to_seconds(c(2, 2, 4, 2, 2), bpm = 120)
 
 #microseconds_per_beat_to_bpm(500000)
+
+#sci_notation_to_midi(c("C#4", "Eb4", "G#4", "Bb4", "A#4", "Db4", "E#4", "Gb2"))
+
