@@ -27,7 +27,7 @@ Berkowitz("main")
 Berkowitz("phrases")
 ```
 
-These various item banks can be used as inputs to tests created with the [musicassessr](https://github.com/syntheso/musicassessr) library.
+These various item banks can be used as inputs to tests created with the [musicassessr](https://github.com/syntheso/musicassessr) package.
 
 Please note, these functions can take a long time to run.
 
