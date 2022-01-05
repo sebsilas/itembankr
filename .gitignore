@@ -5,5 +5,3 @@
 .Rdata
 .httr-oauth
 .DS_Store
-inst/item_banks/
-inst/testing/
