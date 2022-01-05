@@ -4,10 +4,10 @@
 \alias{midi_file_to_notes_and_durations}
 \title{Get notes and durations from a MIDI file}
 \usage{
-midi_file_to_notes_and_durations(midi_file, prefix = NULL)
+midi_file_to_notes_and_durations(midi_file, prefix = NULL, string_df = TRUE)
 }
 \arguments{
-\item{prefix}{}
+\item{string_df}{}
 }
 \value{
 
