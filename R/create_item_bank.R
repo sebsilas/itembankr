@@ -1,5 +1,4 @@
 
-
 create_item_bank_from_files <- function(corpus_name, midi_file_dir = NULL, musicxml_file_dir = NULL, prefix = NULL) {
 
 
@@ -77,35 +76,43 @@ convert_pitches_and_durs <- function(pitches, durs, relativeMelodies, relativeDu
 }
 
 
+
 #' Get notes and durations from a MIDI file
 #'
 #' @param midi_file
 #' @param prefix
+#' @param string_df
 #'
 #' @return
 #' @export
 #'
 #' @examples
-midi_file_to_notes_and_durations <- function(midi_file, prefix = NULL) {
+midi_file_to_notes_and_durations <- function(midi_file, prefix = NULL, string_df = TRUE) {
+
   midi_file_dat <- tuneR::readMidi(midi_file)
 
-  tempo <- midi_file_dat %>% dplyr::filter(event == "Set Tempo") %>% dplyr::pull(parameterMetaSystem)
-  tempo <- as.numeric(tempo)
+  tempo <- midi_file_dat %>% dplyr::filter(event == "Set Tempo") %>% dplyr::pull(parameterMetaSystem) %>% as.numeric()
 
   if(length(tempo) != 1) {
     tempo_bpm <- microseconds_per_beat_to_bpm(tempo)
     tempo <- tempo[1]
   }
-  notes <- tuneR::getMidiNotes(midi_file_dat) %>%
-    dplyr::mutate(onset = ticks_to_ms(time, ppq = get_division_from_midi_file(midi_file), tempo = tempo),
-                  durations = ticks_to_ms(length, ppq = get_division_from_midi_file(midi_file), tempo = tempo),
-                  interval = c(NA, diff(note)))
 
-  notes_and_durs <- notes %>% dplyr::summarise(notes = paste0(note, collapse = ","),
-                                               durations = paste0(round(durations, 2), collapse = ",")) %>%
-    dplyr::mutate(midi_file = remove_prefix(midi_file, prefix))
+  notes <- tuneR::getMidiNotes(midi_file_dat) %>% tibble::as_tibble()
+
+  if(string_df) {
+    notes %>% dplyr::mutate(onset = ticks_to_ms(time, ppq = get_division_from_midi_file(midi_file), tempo = tempo),
+                            durations = ticks_to_ms(length, ppq = get_division_from_midi_file(midi_file), tempo = tempo)) %>%
+      dplyr::summarise(notes = paste0(note, collapse = ","),
+                       durations = paste0(round(durations, 2), collapse = ","),
+                       onset = paste0(round(onset, 2), collapse = ",")) %>%
+      dplyr::ungroup() %>% dplyr::mutate(midi_file = remove_prefix(midi_file, prefix))
+  } else {
+    notes %>% dplyr::mutate(onset = round(ticks_to_ms(time, ppq = get_division_from_midi_file(midi_file), tempo = tempo), 2),
+                            durations = round(ticks_to_ms(length, ppq = get_division_from_midi_file(midi_file), tempo = tempo), 2)) %>%
+      dplyr::select(onset, durations, note)
+  }
 }
-
 
 musicxml_file_to_notes_and_durations <- function(musicxml_file, relativeMelodies = TRUE, relativeDurations = FALSE) {
   data <- XML::xmlParse(musicxml_file)
@@ -128,24 +135,6 @@ musicxml_file_to_notes_and_durations <- function(musicxml_file, relativeMelodies
 }
 
 
-
-#' Segment a note track by adding phraseend and phrasebeg columns with boolean markers.
-#'
-#' @param note_track a data frame with an "onset" column
-#'
-#' @return
-#' @export
-#'
-#' @examples
-add_phrase_info2 <- function(note_track){
-  # this is the original function from KF
-  note_track <- note_track %>% dplyr::mutate(ioi = c(diff(onset), NA), note_pos = 1:n())
-  outliers <- note_track %>% dplyr::pull(ioi) %>% boxplot(plot = FALSE) %>% `[[`("out")
-  outliers <- outliers[outliers > .65]
-  note_track %>%
-    dplyr::mutate(phrasend = as.numeric(ioi >.96 | ioi %in% outliers),
-           phrasbeg = as.numeric(dplyr::lag(phrasend) | note_pos ==1))
-}
 
 add_phrase_info <- function(note_track, end_track){
 
