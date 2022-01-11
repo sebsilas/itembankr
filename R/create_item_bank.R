@@ -104,12 +104,17 @@ midi_file_to_notes_and_durations <- function(midi_file, prefix = NULL, string_df
                           durations = round(ticks_to_ms(length, ppq = get_division_from_midi_file(midi_file), tempo = tempo), 2)) %>%
     dplyr::select(onset, durations, note)
 
+  if(!is.null(prefix)) {
+    midi_file <- remove_prefix(midi_file, prefix)
+  }
+  out$midi_file <- midi_file
+
   if(produce_extra_melodic_features) {
     out <- out %>% musicassessr::produce_extra_melodic_features()
   }
 
   if(string_df) {
-    out <- out %>% musicassessr::to_string_df()
+    out <- out %>% musicassessr::to_string_df(exclude_cols = "midi_file")
   }
   out
 }
@@ -293,3 +298,4 @@ corpus_to_item_bank <- function(corpus_name,
 
 }
 
+# d <- midi_file_to_notes_and_durations("/Users/sebsilas/true.mid")

@@ -56,13 +56,17 @@ phrases_db <- create_phrases_db(corpus_name = corpus_name, midi_file_dir = add_p
 
 ## References
 
-Melody Features
+Beaty, R. E., Frieler, K., Norgaard, M., Merseal, H. M., MacDonald, M. C., & Weiss, D. J. (2021). Expert musical improvisations contain sequencing biases seen in language production. Journal of Experimental Psychology. https://doi.org/10.1037/xge0001107
 
-- FANTASTIC
-- Klaus difficulty measures
-- Klaus segmentation algo
+Berkowitz, S., Fontrier, G., Goldstein, P., & Smaldone, E. (2017). A new approach to sight singing (Sixth edition). W. W. Norton & Company
 
-Corpuses
-- WJD
-- Berkowitz
-- Slonimsky
+Crayencour, H.-C., Velichkina, O., Frieler, K., Höger, F., Pfleiderer, M., Henry, L., Solis, G., Wolff, D., Weyde, T., Peeters, G., Basaran, D., Smith, J., & Proutskova, P. (2021)
+
+The DTL1000 Jazz Solo Dataset (in prep.). Journal on Computing and Cultural Heritage
+
+Müllensiefen, D. (2009). FANTASTIC: Feature ANalysis Technology Accessing STatistics (In a Corpus; Technical report). 37.
+
+Pfleiderer, M., Frieler, K., Abeßer, J., Zaddach, W.-G., & Burkhart, B. (Hrsg.). (2017). Inside the Jazzomat—New perspectives for jazz research. Schott Campus.
+
+Slonimsky, N. (1947). Thesaurus of scales and melodic patterns. Literary Licensing, LLC.
+

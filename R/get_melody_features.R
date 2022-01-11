@@ -204,6 +204,14 @@ int_to_pattern <- function (v) {
 
 # plotting functions
 
+#' Plot histograms of the item bank vars/features
+#'
+#' @param item_bank
+#'
+#' @return
+#' @export
+#'
+#' @examples
 hist_item_bank <- function(item_bank) {
   ggplot2::ggplot(tidyr::gather(item_bank), ggplot2::aes(value)) +
     ggplot2::geom_histogram() +
