@@ -11,18 +11,18 @@ create_item_bank_from_files <- function(corpus_name, midi_file_dir = NULL, music
     # this one is used internally at the itembankr level:
     midi_file_dir_prefix <- add_prefix(midi_file_dir, prefix)
     musicxml_file_dir_prefix <- add_prefix(musicxml_file_dir, prefix)
+
     files <- list.files(path = midi_file_dir_prefix, pattern = "\\.mid$",  full.names = TRUE)
-    file_key <- list.files(path = musicxml_file_dir_prefix, pattern = "\\.musicxml$",  full.names = FALSE)
-    file_key <- remove_prefix(file_key, prefix)
-    file_key <- tools::file_path_sans_ext(file_key)
-    res <- dplyr::bind_rows(lapply(files, midi_file_to_notes_and_durations, prefix = prefix))
+    file_key <- list.files(path = musicxml_file_dir_prefix, pattern = "\\.musicxml$",  full.names = FALSE) %>%
+      remove_prefix(file_key, prefix) %>% tools::file_path_sans_ext(file_key)
+
+    res <- purrr:map_dfr(files, midi_file_to_notes_and_durations, prefix = prefix)
     res$file_key <- file_key
-    musicxml_files <- data.frame(music_xml = list.files(path = musicxml_file_dir_prefix, pattern = "\\.musicxml$",  full.names = TRUE),
+    musicxml_files <- tibble::tibble(music_xml = list.files(path = musicxml_file_dir_prefix, pattern = "\\.musicxml$",  full.names = TRUE),
                                  file_key = tools::file_path_sans_ext(list.files(path = musicxml_file_dir_prefix, pattern = "\\.musicxml$",  full.names = FALSE)))
     res$musicxml_file <- remove_prefix(musicxml_files[match(res$file_key, musicxml_files$file_key), "music_xml"], prefix)
-    res
-  }
-  else if(!is.null(midi_file_dir)) {
+
+  } else if(!is.null(midi_file_dir)) {
     # this first file path is used later on e.g with musicassessr:
     midi_file_dir <- paste0('item_banks/', corpus_name, '/', midi_file_dir)
 
@@ -30,39 +30,36 @@ create_item_bank_from_files <- function(corpus_name, midi_file_dir = NULL, music
     midi_file_dir_prefix <- add_prefix(midi_file_dir, prefix)
 
     files <- list.files(path = midi_file_dir_prefix, pattern = "\\.mid$",  full.names = TRUE)
-    files <- dplyr::bind_rows(lapply(files, midi_file_to_notes_and_durations, prefix = prefix))
-    files
-  }
-  else if(!is.null(musicxml_file_dir)) {
+    files <- purrr:map_dfr(files, midi_file_to_notes_and_durations, prefix = prefix)
+
+  } else if(!is.null(musicxml_file_dir)) {
     # this first file path is used later on e.g with musicassessr:
     musicxml_file_dir <- paste0('item_banks/', corpus_name, '/', musicxml_file_dir)
     # this one is used internally at the itembankr level:
     musicxml_file_dir_prefix <- add_prefix(musicxml_file_dir, prefix)
 
     files <- list.files(path = musicxml_file_dir_prefix, pattern = "\\.musicxml$",  full.names = TRUE)
-    files <- dplyr::bind_rows(lapply(files, musicxml_file_to_notes_and_durations, prefix = prefix))
-    files
-  }
-  else {
+    files <- purrr:map_dfr(files, musicxml_file_to_notes_and_durations, prefix = prefix)
+  } else {
     stop("File extension not recognised. Currently only .mid or .musicxml supported.")
   }
 
+  res <- res %>% dplyr::rowwise() %>%
+    dplyr::mutate(melody = paste0(diff(str_mel_to_vector(notes)), collapse = ","),
+                  musicxml_file = remove_slash(musicxml_file),
+                  midi_file = remove_slash(midi_file)) %>% dplyr::ungroup()
 
-  res$musicxml_file <- unlist(lapply(res$musicxml_file, function(x) if(substr(x, 1, 1) == "/") {
-    substr(x, 2, nchar(x))
-  }))
-
-  res$midi_file <- unlist(lapply(res$midi_file, function(x) if(substr(x, 1, 1) == "/") {
-    substr(x, 2, nchar(x))
-  }))
-
-  res <- res %>% dplyr::rowwise() %>% dplyr::mutate(melody = paste0(diff(str_mel_to_vector(notes)), collapse = ",")) %>% dplyr::ungroup()
   res
 }
 
 
 # internal functions
 
+remove_slash <- function(x) {
+  if(substr(x, 1, 1) == "/") {
+  substr(x, 2, nchar(x))
+  }
+}
 
 convert_pitches_and_durs <- function(pitches, durs, relativeMelodies, relativeDurations, tempo) {
   if(relativeMelodies) {
@@ -112,7 +109,6 @@ midi_file_to_notes_and_durations <- function(midi_file, prefix = NULL, string_df
   if(produce_extra_melodic_features) {
     out <- out %>% musicassessr::produce_extra_melodic_features()
   }
-
   if(string_df) {
     out <- out %>% musicassessr::to_string_df(exclude_cols = "midi_file")
   }
@@ -129,11 +125,11 @@ musicxml_file_to_notes_and_durations <- function(musicxml_file, relativeMelodies
   notes <- unlist(notes, recursive = FALSE)
   pitches <- unlist(lapply(notes, function(note) paste0(note$pitch$step, note$pitch$octave)))
   pitches <- sci_notation_to_midi(pitches)
-  durations <- lapply(notes, function(note) note$duration )
+  durations <- lapply(notes, function(note) note$duration)
   converted_pitches_and_durs <- convert_pitches_and_durs(pitches, durations, relativeMelodies, relativeDurations, tempo)
   pitches <- converted_pitches_and_durs$pitches
   durations <- converted_pitches_and_durs$durations
-  data.frame(melody = paste0(pitches, collapse = ","),
+  tibble::tibble(melody = paste0(pitches, collapse = ","),
              durations = paste0(durations, collapse = ","),
              musicxml_file = musicxml_file
   )
@@ -162,51 +158,45 @@ create_phrases_db <- function(corpus_name, midi_file_dir, compute_melody_feature
   # to keep IDs in correct order
   files <- paste0(midi_file_dir, "/", corpus_name, 1:no_files, ".mid")
 
-  phrase <- dplyr::bind_rows(lapply(files, function(f) {
+  phrase <- purrr::map_dfr(files, function(f) {
 
-    t <- tuneR::readMidi(f)
+    res <- tuneR::readMidi(f)
 
-    end_time <- t %>% dplyr::filter(event == "End of Track") %>%
-      dplyr::select(time)
-    end_time <- as.vector(as.numeric(end_time))
-    t2 <- t %>% dplyr::filter(event == "Note On") %>%
+    end_time <- res %>% dplyr::filter(event == "End of Track") %>%
+      dplyr::pull(time) %>% as.numeric()
+
+    res <- res %>% dplyr::filter(event == "Note On") %>%
       dplyr::select(-c(type, channel, parameterMetaSystem, track, event, parameter2)) %>%
-      dplyr::rename(note = parameter1)
-    t3 <- add_phrase_info(t2, end_time)
+      dplyr::rename(note = parameter1) %>% add_phrase_info(end_time)
+
     mid_file <- remove_prefix(f, paste0(prefix, "/") )
-    t3 <- t3 %>% dplyr::mutate(midi_file = mid_file)
-  }), .id = "id")
+
+    res <- res %>% dplyr::mutate(midi_file = mid_file)
+  })
 
   phrase_beg <- phrase %>% dplyr::filter(phrasbeg == 1) %>%
-    dplyr::summarise(id = id,
-                     start = note_pos,
-                     midi_file = midi_file
-                     )
+    dplyr::summarise(id = id, start = note_pos, midi_file = midi_file)
 
-  phrase_end <- phrase %>% dplyr::filter(phrasend == 1) %>%
-    dplyr::summarise(end = note_pos)
+  phrase_end <- phrase %>% dplyr::filter(phrasend == 1) %>% dplyr::summarise(end = note_pos)
 
   phrases <- cbind(phrase_beg, phrase_end)
 
-  phrases$notes <- unlist(lapply(1:nrow(phrases), function(i) {
-    row_ids <- phrases[i, "start"]:phrases[i, "end"]
-    paste0(phrase[row_ids, "note"], collapse = ",")
-  }))
+  phrases <- purrr::pmap(phrases, function(id, start, midi_file, end) {
 
-  phrases$melody <- unlist(lapply(1:nrow(phrases), function(i) {
-    row_ids <- phrases[i, "start"]:phrases[i, "end"]
-    paste0(diff(phrase[row_ids, "note"]), collapse = ",")
-  }))
+    start <- phrases %>% slice(i) %>% pull(start)
+    end <- phrases %>% slice(i) %>% pull(end)
+    phrase <- phrase %>% slice(start:end)
+    note <- phrase %>% pull(note)
+    durations <- phrase %>% pull(durations)
+    ioi <- phrase %>% pull(ioi)
 
-  phrases$durations <- unlist(lapply(1:nrow(phrases), function(i) {
-    row_ids <- phrases[i, "start"]:phrases[i, "end"]
-    paste0(phrase[row_ids, "ioi"], collapse = ",")
-  }))
 
-  phrases$N <- unlist(lapply(1:nrow(phrases), function(i) {
-    row_ids <- phrases[i, "start"]:phrases[i, "end"]
-    length(phrase[row_ids, "note"])
-  }))
+    tibble::tibble(notes = paste0(phrase, collapse = ","),
+                   melody = paste0(diff(phrase), collapse = ","),
+                   durations = paste0(durations, ","),
+                   ioi = paste0(ioi, ","),
+                    N = length(phrase))
+  })
 
   phrases <- phrases %>% dplyr::filter(melody != "")
 
@@ -242,6 +232,23 @@ input_check <- function(midi_file_dir, musicxml_file_dir, corpus_df) {
 
 }
 
+
+
+#' Convert a corpus to a useful item bank
+#'
+#' @param corpus_name
+#' @param midi_file_dir
+#' @param musicxml_file_dir
+#' @param prefix
+#' @param corpus_df
+#' @param phrases_db
+#' @param output_type
+#' @param launch_app
+#'
+#' @return
+#' @export
+#'
+#' @examples
 corpus_to_item_bank <- function(corpus_name,
                                 midi_file_dir = NULL,
                                 musicxml_file_dir = NULL,
@@ -265,17 +272,22 @@ corpus_to_item_bank <- function(corpus_name,
     main_db <- get_melody_features(freq_db, mel_sep = ",", durationMeasures = TRUE)
 
     if(is.null(phrases_db)) {
-      phrases_db <- create_phrases_db(corpus_name = corpus_name, midi_file_dir = add_prefix(paste0('item_banks/', corpus_name, '/', midi_file_dir), prefix), prefix = prefix)
+      phrases_db <- create_phrases_db(corpus_name = corpus_name,
+                                      midi_file_dir = add_prefix(paste0('item_banks/', corpus_name, '/', midi_file_dir), prefix),
+                                      prefix = prefix)
     }
 
 
   } else {
     files_db <- NA
+    corpus_df <- corpus_df %>% mutate(midi_file = NA, musicxml_file = NA)
     ngram_db <- split_item_bank_into_ngrams(corpus_df)
+    ngram_db <- ngram_db[!duplicated(ngram_db), ]
     freq_db <- count_freqs(ngram_db)
     main_db <- get_melody_features(freq_db, mel_sep = ",", durationMeasures = TRUE)
-    phrases_db <- count_freqs(phrases_db)
-    phrases_db <- get_melody_features(phrases_db, mel_sep = ",", durationMeasures = TRUE)
+    main_db <- main_db[!duplicated(main_db), ]
+    phrases_db <- count_freqs(phrases_db) %>% get_melody_features(mel_sep = ",", durationMeasures = TRUE)
+    phrases_db <- phrases_db[!duplicated(phrases_db), ]
   }
 
 

@@ -26,7 +26,10 @@ get_melody_features <- function(df, mel_sep = ",", durationMeasures = TRUE) {
   step_contour_df <- step_contour_df[, c("step.cont.glob.var", "step.cont.glob.dir", "step.cont.loc.var")]
   df <- dplyr::bind_cols(df, step_contour_df)
 
-  if (durationMeasures) {
+  # interval entropy
+  df$i.entropy <- lapply(df$melody, function(x) get_interval_entropy(x, ","))
+
+  if(durationMeasures) {
     # duration measures
     duration_df <- dplyr::bind_rows(lapply(df$durations, get_duration_measures))
     names(duration_df) <- c("d.entropy", "d.eq.trans")
@@ -49,7 +52,7 @@ get_melody_features <- function(df, mel_sep = ",", durationMeasures = TRUE) {
   numeric_vars <- c("log_freq", "step.cont.glob.dir", "step.cont.glob.var",
                     "step.cont.loc.var", "tonal.clarity", "tonal.spike", "tonalness", "mean_int_size",
                     "int_range", "dir_change", "mean_dir_change", "int_variety", "pitch_variety",
-                    "mean_run_length", "d.entropy", "d.eq.trans", "mean_duration")
+                    "mean_run_length", "d.entropy", "d.eq.trans", "mean_duration", "i.entropy")
 
   # round all numeric columns to two decimal places
   df <- df %>% dplyr::mutate_at(dplyr::vars(numeric_vars), dplyr::funs(round(., 2)))
@@ -204,6 +207,7 @@ int_to_pattern <- function (v) {
 
 # plotting functions
 
+
 #' Plot histograms of the item bank vars/features
 #'
 #' @param item_bank
@@ -217,3 +221,4 @@ hist_item_bank <- function(item_bank) {
     ggplot2::geom_histogram() +
     ggplot2::facet_wrap(~key, scales = 'free_x')
 }
+

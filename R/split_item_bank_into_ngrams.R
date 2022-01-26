@@ -1,25 +1,35 @@
 
-split_item_bank_into_ngrams <- function(item_bank) {
+split_item_bank_into_ngrams <- function(item_bank, M = NULL) {
 
   warning('This could take a long time.')
-  ngrams <- apply(item_bank, MARGIN = 1, function(row) {
 
-    ngram_res <- get_ngrams_multiple_sizes(str_mel_to_vector(row['melody'], sep = ","), 8)
+  ngrams <- purrr::pmap_dfr(item_bank, function(row_id,
+                                                orig_abs_melody,
+                                                durations,
+                                                melid,
+                                                N,
+                                                melody,
+                                                midi_file,
+                                                musicxml_file) {
 
-    if(!is.null(row['midi_file']) & !is.na(row['midi_file'])) {
-      ngram_res <-  cbind(ngram_res, midi_file = row['midi_file'])
+    cat('row id is: ', row_id, '\n')
+
+
+    if(is.null(M)) {
+      M <- N-1
     }
-    if(!is.null(row['musicxml_file']) & !is.na(row['musicxml_file'])) {
-      ngram_res <- cbind(ngram_res, data.frame(musicxml_file = row['musicxml_file']))
-    }
-    if(!is.null(row['durations']) & !is.na(row['durations'])) {
-      ngram_res <- cbind(ngram_res, data.frame(durations = row['durations']))
-    }
-    ngram_res
+
+    ngram_res <- get_ngrams_multiple_sizes(str_mel_to_vector(melody), M)
+
+    cbind(ngram_res,
+          tibble::tibble(durations = durations,
+                        melody = melody,
+                        midi_file = midi_file,
+                        musicxml_file = musicxml_file))
   })
 
-  ngrams <- dplyr::bind_rows(ngrams)
-  row.names(ngrams) <- 1:nrow(ngrams)
+  ngrams$row_id <- 1:nrow(ngrams)
+
   ngrams <- clip_durations(ngrams)
 
   if("value" %in% names(ngrams)) {
@@ -43,23 +53,18 @@ split_item_bank_into_ngrams <- function(item_bank) {
 get_ngrams_multiple_sizes <- function(rel_melody, M) {
 
   if (length(rel_melody) == 1) {
-    #ngrams.multi <- rel_melody
     ngrams.multi <- tidyr::tibble(start = NA, N = 1, value = paste(rel_melody, collapse = ","))
-  }
-
-  else if (length(rel_melody) == 2) {
+  } else if (length(rel_melody) == 2) {
     # ngrams.multi <- as.list(rel_melody)
     ngrams.multi <- tidyr::tibble(start = NA, N = 2, value = paste(rel_melody, collapse = ","))
-  }
-
-  else {
+  } else {
     if(length(rel_melody) < M) {
       M <- length(rel_melody)
     }
+
     # grab all ngrams from 1:M for a given relative melody
-    ngrams.multi <- dplyr::bind_rows(mapply(musicassessr::get_all_ngrams, N = 1:M, MoreArgs = list(
-      "x" = rel_melody),
-      "SIMPLIFY" = FALSE))
+    ngrams.multi <- purrr::map_dfr(1:M, musicassessr::get_all_ngrams, x = rel_melody)
+    # but this shouldn't be called if the melody length is shorter than the ngram length, obv..
   }
   ngrams.multi
 }
@@ -70,21 +75,31 @@ get_ngrams_multiple_sizes <- function(rel_melody, M) {
 
 
 clip_durations <- function(df) {
-  durs <- apply(df, MARGIN = 1, function(row) {
-    if(is.na(row['start'])) {
-      row['durations']
+
+  purrr::pmap_dfr(df, function(start, N, value, orig_abs_melody, durations,
+                           melody, midi_file, musicxml_file, row_id) {
+
+    cat('no rows ngram db: ', nrow(df), '\n')
+    cat('current row: ', row_id, '\n')
+
+
+    start <- as.numeric(start)
+
+    if(is.na(start) | is.null(start)) {
+      durations <- NA
     } else {
-      start <- as.numeric(row['start'])
-      N <- as.numeric(row['N'])
-      end <- start + N + 1
-      dur_v <- str_mel_to_vector(row['durations'], ",")
+      end <- start + as.numeric(N) + 1
+      dur_v <- durations %>% str_mel_to_vector()
       res <- dur_v[start:(end-1)]
-      paste0(res, collapse = ",")
+      durations <- paste0(res, collapse = ",")
     }
+
+    tibble::tibble(melody = value, durations = durations,
+                   midi_file = midi_file, musicxml_file = musicxml_file)
+
   })
 
-  df$durations <- durs
-  df
+
 }
 
 
