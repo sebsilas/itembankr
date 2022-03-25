@@ -4,10 +4,10 @@
 \alias{hist_item_bank}
 \title{Plot histograms of the item bank vars/features}
 \usage{
-hist_item_bank(item_bank)
+hist_item_bank(item_bank, nrow = NULL, ncol = NULL)
 }
 \arguments{
-\item{item_bank}{}
+\item{ncol}{}
 }
 \value{
 

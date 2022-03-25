@@ -27,7 +27,7 @@ get_melody_features <- function(df, mel_sep = ",", durationMeasures = TRUE) {
   df <- dplyr::bind_cols(df, step_contour_df)
 
   # interval entropy
-  df$i.entropy <- lapply(df$melody, function(x) get_interval_entropy(x, ","))
+  df$i.entropy <- get_interval_entropy(df$melody)
 
   if(durationMeasures) {
     # duration measures
@@ -101,10 +101,9 @@ get_stimuli_length <- function(melody_col, sep) {
   res
 }
 
-get_interval_entropy <- function(rel_melody_col, sep) {
+get_interval_entropy <- function(rel_melody_col, sep = ",") {
   # add interval entropy
-  res <- lapply(rel_melody_col, function(x) compute.entropy(str_mel_to_vector(unlist(x), sep), (phr.length.limits[2]-1)))
-  res  <- as.numeric(res)
+  res <- purrr::map_dbl(rel_melody_col, function(x) compute.entropy(str_mel_to_vector(unlist(x), sep), (phr.length.limits[2]-1)))
 }
 
 get_tonality <- function(melody, sep) {
@@ -211,14 +210,16 @@ int_to_pattern <- function (v) {
 #' Plot histograms of the item bank vars/features
 #'
 #' @param item_bank
+#' @param nrow
+#' @param ncol
 #'
 #' @return
 #' @export
 #'
 #' @examples
-hist_item_bank <- function(item_bank) {
+hist_item_bank <- function(item_bank, nrow = NULL, ncol = NULL) {
   ggplot2::ggplot(tidyr::gather(item_bank), ggplot2::aes(value)) +
     ggplot2::geom_histogram() +
-    ggplot2::facet_wrap(~key, scales = 'free_x')
+    ggplot2::facet_wrap(~key, scales = 'free_x', nrow = nrow, ncol = ncol)
 }
 

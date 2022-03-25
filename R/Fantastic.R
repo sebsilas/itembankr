@@ -240,3 +240,4 @@ feature.similarity <- function(mel.fns=list.files(path=dir,pattern=".csv"),dir="
 
 	sim
 }
+

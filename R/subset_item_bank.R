@@ -11,18 +11,30 @@
 #' @return
 #' @export
 #' @examples
-subset_item_bank <- function(item_bank, item_length = NULL, quantile_cut = NULL,
-                             span_min = NULL, span_max = NULL, tonality = NULL,
-                             min_mean_duration = 0) {
-  # item_bank should be a df read in e.g by read_rds
+subset_item_bank <- function (item_bank, item_length = NULL, quantile_cut = NULL,
+                              span_min = NULL, span_max = NULL, tonality = NULL, min_mean_duration = 0) {
+
   item_length <- parse_item_bank_length(item_length, item_bank)
 
-  if (is.null(quantile_cut)) { quantile_cut <- min(item_bank$log_freq) }
-  if (is.null(span_min)) { span_min <- min(item_bank$span) }
-  if (is.null(span_max)) { span_max <- max(item_bank$span) }
-  if(!is.null(tonality)) { item_bank <- item_bank %>% dplyr::filter(mode == tonality) }
-  item_bank %>% dplyr::filter(log_freq > quantile_cut & N >= item_length[1] & N <= item_length[2] &
-                         span >= span_min & span <= span_max & mean_duration > min_mean_duration)
+  if (is.null(quantile_cut)) {
+    quantile_cut <- min(item_bank$log_freq)
+  }
+  if (is.null(span_min)) {
+    span_min <- min(item_bank$span)
+  }
+  if (is.null(span_max)) {
+    span_max <- max(item_bank$span)
+  }
+  if (!is.null(tonality)) {
+    item_bank <- item_bank %>% dplyr::filter(mode == tonality)
+  }
+  item_bank <- item_bank %>% dplyr::filter(N >= item_length[1], N <= item_length[2], span >= span_min,
+                                           span <= span_max, mean_duration > min_mean_duration)
+
+  if(!is.na(quantile_cut)) {
+    item_bank <- item_bank %>% dplyr::filter(log_freq >= quantile_cut)
+  }
+  item_bank
 }
 
 
@@ -53,6 +65,7 @@ parse_item_bank_length <- function(specified_length, item_bank) {
     stop('Unknown length format')
   }
 }
+
 
 
 
