@@ -286,6 +286,105 @@ ticks_to_ms <- function(ticks, ppq, tempo) {
   seconds
 }
 
+
+#' Get all ngrams from a given vector
+#'
+#' @param x
+#' @param N
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_all_ngrams <- function(x, N = 3){
+  l <- length(x) - N + 1
+  stopifnot(l > 0)
+  purrr::map_dfr(1:l, function(i){
+    ngram <- x[i:(i + N - 1)]
+    tidyr::tibble(start = i, N = N, value = paste(ngram, collapse = ","))
+  })
+}
+
+
+#' Produce extra melodic features from a pyin note track
+#'
+#' @param pyin_style_res
+#'
+#' @return
+#' @export
+#'
+#' @examples
+produce_extra_melodic_features <- function(pyin_style_res) {
+
+  if(!"note" %in% names(pyin_style_res) & "freq" %in% names(pyin_style_res)) {
+    pyin_style_res <- pyin_style_res %>%
+      dplyr::mutate(note = round(hrep::freq_to_midi(freq)))
+  }
+
+  pyin_style_res <- pyin_style_res %>%
+    dplyr::mutate(
+      sci_notation = midi_to_sci_notation(note),
+      interval = c(NA, diff(note)),
+      ioi = c(NA, diff(onset)),
+      ioi_class = classify_duration(ioi)) %>%
+    segment_phrase()
+
+  if(!"freq" %in% names(pyin_style_res)) {
+    pyin_style_res <- pyin_style_res %>% dplyr::mutate(freq = hrep::midi_to_freq(note))
+  }
+
+  pyin_style_res %>% dplyr::mutate(
+    cents_deviation_from_nearest_midi_pitch = vector_cents_between_two_vectors(round(hrep::midi_to_freq(hrep::freq_to_midi(freq))), freq),
+    # the last line looks tautological, but, by converting back and forth, you get the quantised pitch and can measure the cents deviation from this
+    pitch_class = itembankr::midi_to_pitch_class(round(hrep::freq_to_midi(freq))),
+    pitch_class_numeric = itembankr::midi_to_pitch_class(round(hrep::freq_to_midi(freq)))
+  )
+
+}
+
+#' Classify ioi class (see Frieler.. )
+#'
+#' @param dur_vec best, should be a ioi vector
+#' @param ref_duration
+#'
+#' @return
+#' @export
+#'
+#' @examples
+classify_duration <- function(dur_vec, ref_duration = .5){
+  rel_dur <- dur_vec/ref_duration
+  rhythm_class <- rep(-2, length(rel_dur))
+  #rhythm_class[rel_dur <= .45] <- -2
+  rhythm_class[rel_dur > 0.45] <- -1
+  rhythm_class[rel_dur > 0.9] <- 0
+  rhythm_class[rel_dur > 1.8] <- 1
+  rhythm_class[rel_dur > 3.3] <- 2
+  rhythm_class
+}
+
+#' Segment a note track by adding phrasend and phrasbeg columns with boolean markers.
+#'
+#' @param note_track a data frame with an "onset" column
+#'
+#' @return
+#' @export
+#'
+#' @examples
+segment_phrase <- function(note_track){
+  # (originally add_phrase_info from KF)
+  note_track <- note_track %>% dplyr::mutate(ioi = c(0, diff(onset)), note_pos = 1:dplyr::n())
+  outliers <- note_track %>% dplyr::pull(ioi) %>% boxplot(plot = FALSE) %>% `[[`("out")
+  outliers <- outliers[outliers > .65]
+  r <- note_track %>%
+    dplyr::mutate(phrasend = as.numeric(ioi >.96 | ioi %in% outliers),
+                  phrasbeg = as.numeric(dplyr::lag(phrasend) | note_pos == 1))
+
+  r$phrasend[is.na(r$phrasend)] <- 0
+  r$phrasend[length(r$phrasend)] <- 1
+  r
+}
+
+
 # tests
 
 #rel_bpm_to_seconds(c(2, 2, 4, 2, 2), bpm = 120)

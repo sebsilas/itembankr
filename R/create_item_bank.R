@@ -107,7 +107,7 @@ midi_file_to_notes_and_durations <- function(midi_file, prefix = NULL, string_df
   out$midi_file <- midi_file
 
   if(produce_extra_melodic_features) {
-    out <- out %>% musicassessr::produce_extra_melodic_features()
+    out <- out %>% produce_extra_melodic_features()
   }
   if(string_df) {
     out <- out %>% musicassessr::to_string_df(exclude_cols = "midi_file")

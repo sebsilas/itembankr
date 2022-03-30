@@ -19,8 +19,5 @@ Imports:
     purrr,
     magrittr,
     psych,
-    DT,
-    musicassessr (>= 0.0.0.9000)
+    DT
 RoxygenNote: 7.1.1
-Remotes:  
-    sebsilas/musicassessr

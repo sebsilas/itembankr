@@ -63,7 +63,7 @@ get_ngrams_multiple_sizes <- function(rel_melody, M) {
     }
 
     # grab all ngrams from 1:M for a given relative melody
-    ngrams.multi <- purrr::map_dfr(1:M, musicassessr::get_all_ngrams, x = rel_melody)
+    ngrams.multi <- purrr::map_dfr(1:M, get_all_ngrams, x = rel_melody)
     # but this shouldn't be called if the melody length is shorter than the ngram length, obv..
   }
   ngrams.multi
