@@ -64,6 +64,7 @@ parse_item_bank_length <- function(specified_length, item_bank) {
   } else {
     stop('Unknown length format')
   }
+  specified_length
 }
 
 
