@@ -385,6 +385,57 @@ segment_phrase <- function(note_track){
 }
 
 
+#' Get the cents between two vectors
+#'
+#' @param vectora
+#' @param vectorb
+#'
+#' @return
+#' @export
+#'
+#' @examples
+vector_cents_between_two_vectors <- function(vectora, vectorb) {
+  # for each note (as a freq) in a vector, get the cents difference of each note in vector A and vector B
+  res <- c()
+  for (n in 1:length(vectora)) {
+    cent_res <- cents(vectora[n], vectorb[n])
+    res <- c(res, cent_res)
+  }
+  res
+}
+
+
+# and some singing accuracy metrics on read in
+cents <- function(notea, noteb) {
+  # get the cents between two notes (as frequencies)
+  res <- 1200 * log2(noteb/notea)
+  res
+}
+
+#' Get cents between vector and reference note
+#'
+#' @param reference_note
+#' @param vector_of_values
+#'
+#' @return
+#' @export
+#'
+#' @examples
+vector_cents <- function(reference_note, vector_of_values) {
+  # given a vector of values and a target note, give the cents of the vector note relative to the target note
+  res <- vapply(vector_of_values, cents, "notea" = reference_note, FUN.VALUE = 100.001)
+  res
+}
+
+
+
+vector_cents_first_note <- function(vector_of_values) {
+  # given a vector of frequencies, give the cents relative to the first note
+  res <- vapply(vector_of_values, cents, "notea" = vector_of_values[1], FUN.VALUE = 100.001)
+  res
+}
+
+
 # tests
 
 #rel_bpm_to_seconds(c(2, 2, 4, 2, 2), bpm = 120)
