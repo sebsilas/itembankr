@@ -336,8 +336,8 @@ produce_extra_melodic_features <- function(pyin_style_res) {
   pyin_style_res %>% dplyr::mutate(
     cents_deviation_from_nearest_midi_pitch = vector_cents_between_two_vectors(round(hrep::midi_to_freq(hrep::freq_to_midi(freq))), freq),
     # the last line looks tautological, but, by converting back and forth, you get the quantised pitch and can measure the cents deviation from this
-    pitch_class = itembankr::midi_to_pitch_class(round(hrep::freq_to_midi(freq))),
-    pitch_class_numeric = itembankr::midi_to_pitch_class(round(hrep::freq_to_midi(freq)))
+    pitch_class = midi_to_pitch_class(round(hrep::freq_to_midi(freq))),
+    pitch_class_numeric = midi_to_pitch_class(round(hrep::freq_to_midi(freq)))
   )
 
 }

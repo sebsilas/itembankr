@@ -20,7 +20,8 @@ Imports:
     magrittr,
     psych,
     DT,
-    hrep (>= 0.15.0)
+    hrep (>= 0.15.0),
+    stringr
 RoxygenNote: 7.1.1
-Remotes:  
+Remotes: 
     pmcharrison/hrep
