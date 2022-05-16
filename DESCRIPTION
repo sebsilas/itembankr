@@ -19,5 +19,8 @@ Imports:
     purrr,
     magrittr,
     psych,
-    DT
+    DT,
+    hrep (>= 0.15.0)
 RoxygenNote: 7.1.1
+Remotes:  
+    pmcharrison/hrep

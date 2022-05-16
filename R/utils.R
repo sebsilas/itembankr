@@ -327,7 +327,7 @@ produce_extra_melodic_features <- function(pyin_style_res) {
       interval = c(NA, diff(note)),
       ioi = c(NA, diff(onset)),
       ioi_class = classify_duration(ioi)) %>%
-    segment_phrase()
+        segment_phrase()
 
   if(!"freq" %in% names(pyin_style_res)) {
     pyin_style_res <- pyin_style_res %>% dplyr::mutate(freq = hrep::midi_to_freq(note))
@@ -443,4 +443,11 @@ vector_cents_first_note <- function(vector_of_values) {
 #microseconds_per_beat_to_bpm(500000)
 
 #sci_notation_to_midi(c("C#4", "Eb4", "G#4", "Bb4", "A#4", "Db4", "E#4", "Gb2"))
+
+# tibble::tibble(note = c(60, 63, 52),
+#                 freq = c(440, 550, 660),
+#                 dur = c(1, 1, 2),
+#                 onset = c(0, 1, 3)) %>% produce_extra_melodic_features()
+
+
 
