@@ -7,7 +7,9 @@
 vector_cents(reference_note, vector_of_values)
 }
 \arguments{
-\item{vector_of_values}{}
+\item{reference_note}{In Hz.}
+
+\item{vector_of_values}{In Hz.}
 }
 \value{
 

@@ -101,6 +101,15 @@ get_stimuli_length <- function(melody_col, sep) {
   res
 }
 
+#' Get interval entropy
+#'
+#' @param rel_melody_col
+#' @param sep
+#'
+#' @return
+#' @export
+#'
+#' @examples
 get_interval_entropy <- function(rel_melody_col, sep = ",") {
   # add interval entropy
   res <- purrr::map_dbl(rel_melody_col, function(x) compute.entropy(str_mel_to_vector(unlist(x), sep), (phr.length.limits[2]-1)))
@@ -218,8 +227,15 @@ int_to_pattern <- function (v) {
 #'
 #' @examples
 hist_item_bank <- function(item_bank, nrow = NULL, ncol = NULL) {
-  ggplot2::ggplot(tidyr::gather(item_bank), ggplot2::aes(value)) +
+
+  warning("Selecting only numeric columns")
+
+  item_bank %>%
+    dplyr::select(where(is.numeric)) %>%
+    tidyr::gather() %>%
+    ggplot2::ggplot(ggplot2::aes(value)) +
     ggplot2::geom_histogram() +
-    ggplot2::facet_wrap(~key, scales = 'free_x', nrow = nrow, ncol = ncol)
+    ggplot2::facet_wrap(~key, scales = "free_x", nrow = nrow, ncol = ncol)
+
 }
 

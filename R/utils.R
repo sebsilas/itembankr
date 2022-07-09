@@ -405,7 +405,15 @@ vector_cents_between_two_vectors <- function(vectora, vectorb) {
 }
 
 
-# and some singing accuracy metrics on read in
+#' Get cents between two notes
+#'
+#' @param notea The frequency in Hz of note a.
+#' @param noteb The frequency in Hz of note b.
+#'
+#' @return
+#' @export
+#'
+#' @examples
 cents <- function(notea, noteb) {
   # get the cents between two notes (as frequencies)
   res <- 1200 * log2(noteb/notea)
@@ -414,8 +422,8 @@ cents <- function(notea, noteb) {
 
 #' Get cents between vector and reference note
 #'
-#' @param reference_note
-#' @param vector_of_values
+#' @param reference_note In Hz.
+#' @param vector_of_values In Hz.
 #'
 #' @return
 #' @export
