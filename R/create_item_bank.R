@@ -244,6 +244,7 @@ input_check <- function(midi_file_dir, musicxml_file_dir, corpus_df) {
 #' @param phrases_db
 #' @param output_type
 #' @param launch_app
+#' @param main_db_combine_ngram_and_phrases
 #'
 #' @return
 #' @export
@@ -256,7 +257,8 @@ corpus_to_item_bank <- function(corpus_name,
                                 corpus_df = NULL,
                                 phrases_db = NULL,
                                 output_type = c("both", "ngram", "phrases"),
-                                launch_app = TRUE) {
+                                launch_app = TRUE,
+                                main_db_combine_ngram_and_phrases = TRUE) {
 
   input_check(midi_file_dir, musicxml_file_dir, corpus_df)
 
@@ -288,6 +290,12 @@ corpus_to_item_bank <- function(corpus_name,
     main_db <- main_db[!duplicated(main_db), ]
     phrases_db <- count_freqs(phrases_db) %>% get_melody_features(mel_sep = ",", durationMeasures = TRUE)
     phrases_db <- phrases_db[!duplicated(phrases_db), ]
+    if(main_db_combine_ngram_and_phrases) {
+      joint_names <- intersect(names(main_db), names(phrases_db))
+      main_db <- main_db %>% dplyr::select(joint_names)
+      phrases_db <- phrases_db %>% dplyr::select(joint_names)
+      main_db <- rbind(main_db, phrases_db)
+    }
   }
 
 

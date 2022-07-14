@@ -12,11 +12,12 @@ corpus_to_item_bank(
   corpus_df = NULL,
   phrases_db = NULL,
   output_type = c("both", "ngram", "phrases"),
-  launch_app = TRUE
+  launch_app = TRUE,
+  main_db_combine_ngram_and_phrases = TRUE
 )
 }
 \arguments{
-\item{launch_app}{}
+\item{main_db_combine_ngram_and_phrases}{}
 }
 \value{
 
