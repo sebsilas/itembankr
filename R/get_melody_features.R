@@ -82,8 +82,6 @@ get_rel_freq <- function(freq_col) {
 
 count_freqs <- function(item_bank) {
 
-  print('count_freqs')
-  print(item_bank)
 
   values_counts <- item_bank %>%
     dplyr::add_count(melody, name = "freq") %>%
