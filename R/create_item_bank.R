@@ -44,10 +44,12 @@ create_item_bank_from_files <- function(corpus_name, midi_file_dir = NULL, music
     stop("File extension not recognised. Currently only .mid or .musicxml supported.")
   }
 
-  res <- res %>% dplyr::rowwise() %>%
+  res <- res %>%
+    dplyr::rowwise() %>%
     dplyr::mutate(melody = paste0(diff(str_mel_to_vector(notes)), collapse = ","),
                   musicxml_file = remove_slash(musicxml_file),
-                  midi_file = remove_slash(midi_file)) %>% dplyr::ungroup()
+                  midi_file = remove_slash(midi_file)) %>%
+    dplyr::ungroup()
 
   res
 }
@@ -167,14 +169,16 @@ create_phrases_db <- function(corpus_name, midi_file_dir, compute_melody_feature
 
     res <- res %>% dplyr::filter(event == "Note On") %>%
       dplyr::select(-c(type, channel, parameterMetaSystem, track, event, parameter2)) %>%
-      dplyr::rename(note = parameter1) %>% add_phrase_info(end_time)
+      dplyr::rename(note = parameter1) %>%
+      add_phrase_info(end_time)
 
     mid_file <- remove_prefix(f, paste0(prefix, "/") )
 
     res <- res %>% dplyr::mutate(midi_file = mid_file)
   })
 
-  phrase_beg <- phrase %>% dplyr::filter(phrasbeg == 1) %>%
+  phrase_beg <- phrase %>%
+    dplyr::filter(phrasbeg == 1) %>%
     dplyr::summarise(id = id, start = note_pos, midi_file = midi_file)
 
   phrase_end <- phrase %>% dplyr::filter(phrasend == 1) %>% dplyr::summarise(end = note_pos)
@@ -183,12 +187,12 @@ create_phrases_db <- function(corpus_name, midi_file_dir, compute_melody_feature
 
   phrases <- purrr::pmap(phrases, function(id, start, midi_file, end) {
 
-    start <- phrases %>% slice(i) %>% pull(start)
-    end <- phrases %>% slice(i) %>% pull(end)
-    phrase <- phrase %>% slice(start:end)
-    note <- phrase %>% pull(note)
-    durations <- phrase %>% pull(durations)
-    ioi <- phrase %>% pull(ioi)
+    start <- phrases %>% dplyr::slice(i) %>% dplyr::pull(start)
+    end <- phrases %>% dplyr::slice(i) %>% dplyr::pull(end)
+    phrase <- phrase %>% dplyr::slice(start:end)
+    note <- phrase %>% dplyr::pull(note)
+    durations <- dplyr::phrase %>% dplyr::pull(durations)
+    ioi <- phrase %>% dplyr::pull(ioi)
 
 
     tibble::tibble(notes = paste0(phrase, collapse = ","),
@@ -198,7 +202,8 @@ create_phrases_db <- function(corpus_name, midi_file_dir, compute_melody_feature
                     N = length(phrase))
   })
 
-  phrases <- phrases %>% dplyr::filter(melody != "")
+  phrases <- phrases %>%
+    dplyr::filter(melody != "")
 
   if(compute_melody_features) {
     phrases_freq_db <- count_freqs(phrases)
@@ -269,27 +274,55 @@ corpus_to_item_bank <- function(corpus_name,
                                             musicxml_file_dir = musicxml_file_dir,
                                             prefix = prefix)
 
+
     ngram_db <- split_item_bank_into_ngrams(files_db)
     freq_db <- count_freqs(ngram_db)
     main_db <- get_melody_features(freq_db, mel_sep = ",", durationMeasures = TRUE)
 
-    if(is.null(phrases_db)) {
+    if(is.null(phrases_db) & output_type != "ngram") {
       phrases_db <- create_phrases_db(corpus_name = corpus_name,
                                       midi_file_dir = add_prefix(paste0('item_banks/', corpus_name, '/', midi_file_dir), prefix),
                                       prefix = prefix)
+    } else {
+      phrases_db <- NA
     }
 
 
   } else {
+
     files_db <- NA
-    corpus_df <- corpus_df %>% mutate(midi_file = NA, musicxml_file = NA)
+
+    corpus_df <- corpus_df %>%
+      dplyr::mutate(midi_file = NA,
+             musicxml_file = NA,
+             id = 1:nrow(corpus_df),
+             orig_abs_melody = melody,
+             N = length(str_mel_to_vector(orig_abs_melody))) %>%
+      dplyr::relocate(id) %>%
+      dplyr::rowwise() %>%
+      dplyr::mutate(melody = paste0(diff(str_mel_to_vector(orig_abs_melody)), collapse = ",")) %>%
+      dplyr::ungroup()
+
+    suppressWarnings({
+      if(is.null(corpus_df$durations)) {
+        corpus_df <- corpus_df %>%
+          dplyr::mutate(durations = NA)
+      }
+    })
+
     ngram_db <- split_item_bank_into_ngrams(corpus_df)
     ngram_db <- ngram_db[!duplicated(ngram_db), ]
     freq_db <- count_freqs(ngram_db)
     main_db <- get_melody_features(freq_db, mel_sep = ",", durationMeasures = TRUE)
     main_db <- main_db[!duplicated(main_db), ]
-    phrases_db <- count_freqs(phrases_db) %>% get_melody_features(mel_sep = ",", durationMeasures = TRUE)
-    phrases_db <- phrases_db[!duplicated(phrases_db), ]
+
+    if(output_type != "ngram") {
+      phrases_db <- count_freqs(phrases_db) %>% get_melody_features(mel_sep = ",", durationMeasures = TRUE)
+      phrases_db <- phrases_db[!duplicated(phrases_db), ]
+    } else {
+      phrases_db <- NA
+    }
+
     if(main_db_combine_ngram_and_phrases) {
       joint_names <- intersect(names(main_db), names(phrases_db))
       main_db <- main_db %>% dplyr::select(joint_names)
@@ -298,6 +331,7 @@ corpus_to_item_bank <- function(corpus_name,
     }
   }
 
+  main_db <- main_db %>% dplyr::select(where(not_all_na))
 
   # return a function which can access the different dfs
   item_bank <- function(key) {
@@ -311,7 +345,7 @@ corpus_to_item_bank <- function(corpus_name,
   save(item_bank, file = paste0(corpus_name, ".rda"))
 
   if(launch_app) {
-    item_bank_explorer(item_bank)
+    itembankexplorer::item_bank_explorer(item_bank)
   }
 
   item_bank

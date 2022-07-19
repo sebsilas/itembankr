@@ -1,18 +1,20 @@
 
 split_item_bank_into_ngrams <- function(item_bank, M = NULL) {
 
-  warning('This could take a long time.')
+  #warning('This could take a long time.')
 
-  ngrams <- purrr::pmap_dfr(item_bank, function(row_id,
+
+  ngrams <- purrr::pmap_dfr(item_bank, function(id,
                                                 orig_abs_melody,
                                                 durations,
-                                                melid,
                                                 N,
                                                 melody,
                                                 midi_file,
                                                 musicxml_file) {
 
-    cat('row id is: ', row_id, '\n')
+    cat('row id is: ', id, '\n')
+    print('durations?')
+    print(durations)
 
 
     if(is.null(M)) {
@@ -28,15 +30,27 @@ split_item_bank_into_ngrams <- function(item_bank, M = NULL) {
                         musicxml_file = musicxml_file))
   })
 
+  print('here?')
+
   ngrams$row_id <- 1:nrow(ngrams)
 
-  ngrams <- clip_durations(ngrams)
-
-  if("value" %in% names(ngrams)) {
-    ngrams <- ngrams %>% dplyr::rename(melody = value)
+  if(!is.na(item_bank$durations) & is.null(item_bank$durations)) {
+    ngrams <- clip_durations(ngrams)
   }
 
-  ngrams
+
+  if("value" %in% names(ngrams)) {
+    ngrams <- ngrams %>%
+      dplyr::select(-melody) %>%
+      dplyr::rename(melody = value)
+  }
+
+  shared_names <- intersect(names(item_bank), names(ngrams))
+
+  item_bank <- item_bank %>% dplyr::select(shared_names)
+  ngrams <- ngrams %>% dplyr::select(shared_names)
+
+  rbind(item_bank, ngrams)
 }
 
 

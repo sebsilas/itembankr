@@ -444,6 +444,8 @@ vector_cents_first_note <- function(vector_of_values) {
 }
 
 
+not_all_na <- function(x) any(!is.na(x))
+
 # tests
 
 #rel_bpm_to_seconds(c(2, 2, 4, 2, 2), bpm = 120)

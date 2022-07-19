@@ -35,8 +35,14 @@ get_melody_features <- function(df, mel_sep = ",", durationMeasures = TRUE) {
     names(duration_df) <- c("d.entropy", "d.eq.trans")
     df <- dplyr::bind_cols(df, duration_df)
 
-    df <- df %>% dplyr::rowwise() %>%
-      dplyr::mutate(mean_duration = mean(itembankr::str_mel_to_vector(durations))) %>% dplyr::ungroup()
+    if(!is.null(df$durations) & !is.na(df$durations)) {
+      df <- df %>%
+        dplyr::rowwise() %>%
+        dplyr::mutate(mean_duration = mean(itembankr::str_mel_to_vector(durations))) %>%
+        dplyr::ungroup()
+    } else {
+      df$mean_duration <- NA
+    }
 
   }
 
@@ -76,6 +82,9 @@ get_rel_freq <- function(freq_col) {
 
 count_freqs <- function(item_bank) {
 
+  print('count_freqs')
+  print(item_bank)
+
   values_counts <- item_bank %>%
     dplyr::add_count(melody, name = "freq") %>%
     dplyr::arrange(dplyr::desc(freq))
@@ -85,7 +94,8 @@ count_freqs <- function(item_bank) {
   # add N
   values_counts$N <- lapply(values_counts$melody, function(x) length(str_mel_to_vector(x, ",")))
 
-  values_counts <- values_counts %>% dplyr::mutate(rel_freq = freq/total_freq)
+  values_counts <- values_counts %>%
+    dplyr::mutate(rel_freq = freq/total_freq)
 }
 
 
