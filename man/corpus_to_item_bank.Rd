@@ -2,26 +2,36 @@
 % Please edit documentation in R/create_item_bank.R
 \name{corpus_to_item_bank}
 \alias{corpus_to_item_bank}
-\title{Convert a corpus to a useful item bank}
+\title{Convert corpus to item bank}
 \usage{
 corpus_to_item_bank(
-  corpus_name,
+  name = "",
+  input = c("files", "item_df", "phrase_df"),
+  output = c("all", "file", "item", "phrase", "ngram", "combined"),
   midi_file_dir = NULL,
   musicxml_file_dir = NULL,
-  prefix = NULL,
-  corpus_df = NULL,
-  phrases_db = NULL,
-  output_type = c("both", "ngram", "phrases"),
-  launch_app = TRUE,
-  main_db_combine_ngram_and_phrases = TRUE
+  input_df = NULL,
+  launch_app = TRUE
 )
 }
 \arguments{
-\item{main_db_combine_ngram_and_phrases}{}
+\item{name}{A string of the item bank name.}
+
+\item{input}{A string denoting the input. Must be one of "files", "item_df" or "phrases_df".}
+
+\item{output}{A character vector denoting the desired output type or types. You cannot create an output backwards in the hierarchy from the input.}
+
+\item{midi_file_dir}{If the input is files, a directory with MIDI files. Files should be in the format item_bank_name0.mid.}
+
+\item{musicxml_file_dir}{If the input is files, a directory with musicxml files. Files should be in the format item_bank_name0.musicxml.}
+
+\item{input_df}{If using input item_df or _phrases_df, an input dataframe.}
+
+\item{launch_app}{Should the app be launched at the end?}
 }
 \value{
 
 }
 \description{
-Convert a corpus to a useful item bank
+Convert corpus to item bank
 }

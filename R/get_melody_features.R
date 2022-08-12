@@ -1,3 +1,4 @@
+
 #' For a db of melodies, get melodic features
 #'
 #' @param df with column "melody" as a relative melody e.g, 2, 2, -1, 3 and "freq" a count of the number of occurrences of the dataset from which it came
@@ -10,30 +11,51 @@
 #' @examples
 get_melody_features <- function(df, mel_sep = ",", durationMeasures = TRUE) {
 
+  if(durationMeasures & ! "durations" %in% names(df)) {
+    stop("If durationMeasures is TRUE, there must be a durations column in dataframe.")
+  }
 
-  df <- df[!is.na(df$melody), ]
 
-  df$log_freq <- get_log_freq(df$rel_freq)
+  df <- df %>%
+    dplyr::filter(!is.na(abs_melody)) %>%
+    dplyr::rowwise() %>%
+    dplyr::mutate(
+      melody = paste0(diff(str_mel_to_vector(abs_melody)), collapse = ","),
+      N = length(str_mel_to_vector(abs_melody)),
+      # interval entropy
+      i.entropy = compute.entropy(str_mel_to_vector(abs_melody), phr.length.limits[2]-1),
+      # calculate melody spans, to make sure melodies can be presented within a user's range
+      span = compute_span(str_mel_to_vector(melody))
+    ) %>%
+    dplyr::ungroup() %>%
+    count_freqs() %>%
+      dplyr::mutate(
+        rel_freq = get_rel_freq(freq),
+        log_freq = log(rel_freq)
+      )
 
-  df$N <- get_stimuli_length(df$melody, mel_sep)
 
   # tonality
-  tonality <- dplyr::bind_rows(lapply(df$melody, get_tonality, mel_sep))
-  df <- cbind(df, tonality)
+  tonality <- purrr::map_dfr(df$melody, get_tonality, mel_sep)
 
   # step contour
-  step_contour_df <- dplyr::bind_rows(lapply(df$melody, function(x) get_step_contour(str_mel_to_vector(x, mel_sep), TRUE)))
-  step_contour_df <- step_contour_df[, c("step.cont.glob.var", "step.cont.glob.dir", "step.cont.loc.var")]
-  df <- dplyr::bind_cols(df, step_contour_df)
+  step_contour_df <- purrr::map_dfr(df$melody, function(x) get_step_contour(str_mel_to_vector(x, mel_sep), TRUE)) %>%
+    dplyr::select(step.cont.glob.var, step.cont.glob.dir, step.cont.loc.var)
 
-  # interval entropy
-  df$i.entropy <- get_interval_entropy(df$melody)
+
+  # difficulty measures from Klaus
+  difficulty_measures <- purrr::map_dfr(df$melody, function(x) int_ngram_difficulty(int_to_pattern(x))) %>%
+    dplyr::select(-value)
+
+
+  df <- df %>% cbind(tonality, step_contour_df, difficulty_measures)
 
   if(durationMeasures) {
     # duration measures
-    duration_df <- dplyr::bind_rows(lapply(df$durations, get_duration_measures))
+    duration_df <- purrr::map_dfr(df$durations, get_duration_measures)
     names(duration_df) <- c("d.entropy", "d.eq.trans")
-    df <- dplyr::bind_cols(df, duration_df)
+
+    df <- df %>% cbind(duration_df)
 
     if(!is.null(df$durations) & !is.na(df$durations)) {
       df <- df %>%
@@ -46,42 +68,42 @@ get_melody_features <- function(df, mel_sep = ",", durationMeasures = TRUE) {
 
   }
 
-  # difficulty measures from Klaus
-  difficulty_measures <- dplyr::bind_rows(lapply(df$melody, function(x) int_ngram_difficulty(int_to_pattern(x))))
-  df <- cbind(df, difficulty_measures)
-
-  # calculate melody spans, to make sure melodies can be presented within a user's range
-  span <- lapply(df$melody, function(x) sum(abs(range(rel_to_abs_mel(str_mel_to_vector(x, ","), start_note = 1)))) )
-  df$span <- unlist(span)
-
 
   numeric_vars <- c("log_freq", "step.cont.glob.dir", "step.cont.glob.var",
                     "step.cont.loc.var", "tonal.clarity", "tonal.spike", "tonalness", "mean_int_size",
                     "int_range", "dir_change", "mean_dir_change", "int_variety", "pitch_variety",
-                    "mean_run_length", "d.entropy", "d.eq.trans", "mean_duration", "i.entropy")
+                    "mean_run_length", "i.entropy")
+
+  if(durationMeasures) {
+    numeric_vars <- c(numeric_vars, "d.entropy", "d.eq.trans", "mean_duration")
+  }
 
   # round all numeric columns to two decimal places
   df <- df %>% dplyr::mutate_at(dplyr::vars(numeric_vars), dplyr::funs(round(., 2)))
 
   print(hist_item_bank(dplyr::select(df, numeric_vars)))
+
   df
+
 }
 
 
+compute_span <- function(x) {
+  sum(abs(range(rel_to_abs_mel(x, start_note = 1))))
+}
 
 
 # internal functions
 
 get_rel_freq <- function(freq_col) {
   # the column should be a column of frequency values for each item
-  res <- lapply(freq_col, function(x) x/sum(freq_col))
-  cat("Sanity check, this should at to 1: ", sum(unlist(res)))
-  as.numeric(res)
+  res <- purrr::map_dbl(freq_col, function(x) x/sum(freq_col))
+  cat("Sanity check, this should at to 1: ", sum(res))
+  res
 }
 
 
 count_freqs <- function(item_bank) {
-
 
   values_counts <- item_bank %>%
     dplyr::add_count(melody, name = "freq") %>%
@@ -96,32 +118,6 @@ count_freqs <- function(item_bank) {
     dplyr::mutate(rel_freq = freq/total_freq)
 }
 
-
-get_log_freq <- function(rel_freq_col) {
-  # log freq
-  as.numeric(lapply(rel_freq_col, log))
-}
-
-get_stimuli_length <- function(melody_col, sep) {
-  # add melody length, should be
-  res <- lapply(melody_col, function(x) length(unlist(strsplit(x, sep)))+1)
-  res <- as.numeric(res)
-  res
-}
-
-#' Get interval entropy
-#'
-#' @param rel_melody_col
-#' @param sep
-#'
-#' @return
-#' @export
-#'
-#' @examples
-get_interval_entropy <- function(rel_melody_col, sep = ",") {
-  # add interval entropy
-  res <- purrr::map_dbl(rel_melody_col, function(x) compute.entropy(str_mel_to_vector(unlist(x), sep), (phr.length.limits[2]-1)))
-}
 
 get_tonality <- function(melody, sep) {
   # wrap the FANTASTIC functions and add in some default durations if need be

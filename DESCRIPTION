@@ -21,7 +21,9 @@ Imports:
     psych,
     DT,
     hrep (>= 0.15.0),
-    stringr
+    stringr,
+    janitor,
+    assertthat
 RoxygenNote: 7.1.1
 Remotes: 
     pmcharrison/hrep

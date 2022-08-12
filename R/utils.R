@@ -1,3 +1,168 @@
+
+#' Get all ngrams from a given vector
+#'
+#' @param x
+#' @param N
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_all_ngrams <- function(x, N = 3){
+  l <- length(x) - N + 1
+  stopifnot(l > 0)
+  purrr::map_dfr(1:l, function(i){
+    ngram <- x[i:(i + N - 1)]
+    tidyr::tibble(start = i, N = N, value = paste(ngram, collapse = ","))
+  })
+}
+
+
+#' Produce extra melodic features from a pyin note track
+#'
+#' @param pyin_style_res
+#'
+#' @return
+#' @export
+#'
+#' @examples
+produce_extra_melodic_features <- function(pyin_style_res) {
+
+  if(!"note" %in% names(pyin_style_res) & "freq" %in% names(pyin_style_res)) {
+    pyin_style_res <- pyin_style_res %>%
+      dplyr::mutate(note = round(hrep::freq_to_midi(freq)))
+  }
+
+  pyin_style_res <- pyin_style_res %>%
+    dplyr::mutate(
+      sci_notation = midi_to_sci_notation(note),
+      interval = c(NA, diff(note)),
+      ioi = c(NA, diff(onset)),
+      ioi_class = classify_duration(ioi)) %>%
+    segment_phrase()
+
+  if(!"freq" %in% names(pyin_style_res)) {
+    pyin_style_res <- pyin_style_res %>% dplyr::mutate(freq = hrep::midi_to_freq(note))
+  }
+
+  pyin_style_res %>% dplyr::mutate(
+    cents_deviation_from_nearest_midi_pitch = vector_cents_between_two_vectors(round(hrep::midi_to_freq(hrep::freq_to_midi(freq))), freq),
+    # the last line looks tautological, but, by converting back and forth, you get the quantised pitch and can measure the cents deviation from this
+    pitch_class = midi_to_pitch_class(round(hrep::freq_to_midi(freq))),
+    pitch_class_numeric = midi_to_pitch_class(round(hrep::freq_to_midi(freq)))
+  )
+
+}
+
+#' Classify ioi class (see Frieler.. )
+#'
+#' @param dur_vec best, should be a ioi vector
+#' @param ref_duration
+#'
+#' @return
+#' @export
+#'
+#' @examples
+classify_duration <- function(dur_vec, ref_duration = .5){
+  rel_dur <- dur_vec/ref_duration
+  rhythm_class <- rep(-2, length(rel_dur))
+  #rhythm_class[rel_dur <= .45] <- -2
+  rhythm_class[rel_dur > 0.45] <- -1
+  rhythm_class[rel_dur > 0.9] <- 0
+  rhythm_class[rel_dur > 1.8] <- 1
+  rhythm_class[rel_dur > 3.3] <- 2
+  rhythm_class
+}
+
+#' Segment a note track by adding phrasend and phrasbeg columns with boolean markers.
+#'
+#' @param note_track a data frame with an "onset" column
+#'
+#' @return
+#' @export
+#'
+#' @examples
+segment_phrase <- function(note_track) {
+  # (originally add_phrase_info from KF; see below)
+  note_track <- note_track %>% dplyr::mutate(ioi = c(0, diff(onset)), note_pos = 1:dplyr::n())
+  outliers <- note_track %>% dplyr::pull(ioi) %>% boxplot(plot = FALSE) %>% `[[`("out")
+  outliers <- outliers[outliers > .65]
+  r <- note_track %>%
+    dplyr::mutate(phrasend = as.numeric(ioi >.96 | ioi %in% outliers),
+                  phrasbeg = as.numeric(dplyr::lag(phrasend) | note_pos == 1))
+
+  r$phrasend[is.na(r$phrasend)] <- 0
+  r$phrasend[length(r$phrasend)] <- 1
+  r
+}
+
+
+add_phrase_info <- function(note_track, end_track){
+
+  note_track <- note_track %>% dplyr::mutate(onset = time/1000)
+  final_ioi <- diff(c(note_track$onset[length(note_track$onset)], end_track/1000))
+  note_track <- note_track %>% dplyr::mutate(ioi = round(c(diff(onset), final_ioi), 2),
+                                             note_pos = 1:dplyr::n())
+
+  outliers <- note_track %>% dplyr::pull(ioi) %>% boxplot(plot = FALSE) %>% `[[`("out")
+  #outliers <- outliers[outliers > .65]
+  note_track %>%
+    dplyr::mutate(phrasend = as.numeric(ioi %in% outliers | note_pos == length(note_pos)),
+                  phrasbeg = as.numeric(dplyr::lag(phrasend) | note_pos == 1))
+}
+
+
+#' Get the cents between two vectors
+#'
+#' @param vectora
+#' @param vectorb
+#'
+#' @return
+#' @export
+#'
+#' @examples
+vector_cents_between_two_vectors <- function(vectora, vectorb) {
+  # for each note (as a freq) in a vector, get the cents difference of each note in vector A and vector B
+  res <- c()
+  for (n in 1:length(vectora)) {
+    cent_res <- cents(vectora[n], vectorb[n])
+    res <- c(res, cent_res)
+  }
+  res
+}
+
+
+#' Get cents between two notes
+#'
+#' @param notea The frequency in Hz of note a.
+#' @param noteb The frequency in Hz of note b.
+#'
+#' @return
+#' @export
+#'
+#' @examples
+cents <- function(notea, noteb) {
+  # get the cents between two notes (as frequencies)
+  res <- 1200 * log2(noteb/notea)
+  res
+}
+
+#' Get cents between vector and reference note
+#'
+#' @param reference_note In Hz.
+#' @param vector_of_values In Hz.
+#'
+#' @return
+#' @export
+#'
+#' @examples
+vector_cents <- function(reference_note, vector_of_values) {
+  # given a vector of values and a target note, give the cents of the vector note relative to the target note
+  res <- vapply(vector_of_values, cents, "notea" = reference_note, FUN.VALUE = 100.001)
+  res
+}
+
+
 #' Convert a relative melody to an absolute melody
 #'
 #' @param rel_mel
@@ -100,29 +265,9 @@ sci_notation_to_midi <- function(sci_notation) {
     midi <- sci_notation_to_midi_low_level(sci_notation)
   }
   else {
-    print(sci_notation)
     midi <- unlist(lapply(sci_notation, sci_notation_to_midi_low_level))
   }
   midi
-}
-
-
-
-sci_notation_to_midi_low_level <- function(sci_notation) {
-
-  note_without_octave <- remove_last_char_of_string(sci_notation)
-  last_char <- get_last_char_of_string(note_without_octave)
-
-  if(last_char == "b") {
-    midi <- sci.notation.to.midi.list.flat[[as.character(sci_notation)]]
-  }
-  else if(last_char == "#") {
-    print(sci_notation)
-    midi <- sci.notation.to.midi.list.sharp[[as.character(sci_notation)]]
-  }
-  else {
-    midi <- sci.notation.to.midi.list[[as.character(sci_notation)]]
-  }
 }
 
 
@@ -208,6 +353,41 @@ is_sci_notation <- function(x) {
   #stringr::str_detect("C4", "[0-9]")
 }
 
+#' Produce arrhythmic durations for a given melody
+#'
+#' @param x
+#' @param dur
+#'
+#' @return
+#' @export
+#'
+#' @examples
+produce_arrhythmic_durations <- function(x, dur = .50) {
+  # take in a pitch vector and produce a vector of arrhythmic durations
+  res <- rep(dur, length(x))
+}
+
+
+
+
+sci_notation_to_midi_low_level <- function(sci_notation) {
+
+  note_without_octave <- remove_last_char_of_string(sci_notation)
+  last_char <- get_last_char_of_string(note_without_octave)
+
+  if(last_char == "b") {
+    midi <- sci.notation.to.midi.list.flat[[as.character(sci_notation)]]
+  }
+  else if(last_char == "#") {
+    midi <- sci.notation.to.midi.list.sharp[[as.character(sci_notation)]]
+  }
+  else {
+    midi <- sci.notation.to.midi.list[[as.character(sci_notation)]]
+  }
+}
+
+
+
 
 bpm_to_seconds_per_beat <- function(bpm) {
   seconds_in_a_minute <- 60
@@ -226,20 +406,6 @@ microseconds_per_beat_to_bpm <- function(microseconds) {
   60/(microseconds/1000000)
 }
 
-
-#' Produce arrhythmic durations for a given melody
-#'
-#' @param x
-#' @param dur
-#'
-#' @return
-#' @export
-#'
-#' @examples
-produce_arrhythmic_durations <- function(x, dur = .50) {
-  # take in a pitch vector and produce a vector of arrhythmic durations
-  res <- rep(dur, length(x))
-}
 
 add_prefix <- function(file_path, prefix = NULL) {
   if(!is.null(prefix)) {
@@ -287,154 +453,6 @@ ticks_to_ms <- function(ticks, ppq, tempo) {
 }
 
 
-#' Get all ngrams from a given vector
-#'
-#' @param x
-#' @param N
-#'
-#' @return
-#' @export
-#'
-#' @examples
-get_all_ngrams <- function(x, N = 3){
-  l <- length(x) - N + 1
-  stopifnot(l > 0)
-  purrr::map_dfr(1:l, function(i){
-    ngram <- x[i:(i + N - 1)]
-    tidyr::tibble(start = i, N = N, value = paste(ngram, collapse = ","))
-  })
-}
-
-
-#' Produce extra melodic features from a pyin note track
-#'
-#' @param pyin_style_res
-#'
-#' @return
-#' @export
-#'
-#' @examples
-produce_extra_melodic_features <- function(pyin_style_res) {
-
-  if(!"note" %in% names(pyin_style_res) & "freq" %in% names(pyin_style_res)) {
-    pyin_style_res <- pyin_style_res %>%
-      dplyr::mutate(note = round(hrep::freq_to_midi(freq)))
-  }
-
-  pyin_style_res <- pyin_style_res %>%
-    dplyr::mutate(
-      sci_notation = midi_to_sci_notation(note),
-      interval = c(NA, diff(note)),
-      ioi = c(NA, diff(onset)),
-      ioi_class = classify_duration(ioi)) %>%
-        segment_phrase()
-
-  if(!"freq" %in% names(pyin_style_res)) {
-    pyin_style_res <- pyin_style_res %>% dplyr::mutate(freq = hrep::midi_to_freq(note))
-  }
-
-  pyin_style_res %>% dplyr::mutate(
-    cents_deviation_from_nearest_midi_pitch = vector_cents_between_two_vectors(round(hrep::midi_to_freq(hrep::freq_to_midi(freq))), freq),
-    # the last line looks tautological, but, by converting back and forth, you get the quantised pitch and can measure the cents deviation from this
-    pitch_class = midi_to_pitch_class(round(hrep::freq_to_midi(freq))),
-    pitch_class_numeric = midi_to_pitch_class(round(hrep::freq_to_midi(freq)))
-  )
-
-}
-
-#' Classify ioi class (see Frieler.. )
-#'
-#' @param dur_vec best, should be a ioi vector
-#' @param ref_duration
-#'
-#' @return
-#' @export
-#'
-#' @examples
-classify_duration <- function(dur_vec, ref_duration = .5){
-  rel_dur <- dur_vec/ref_duration
-  rhythm_class <- rep(-2, length(rel_dur))
-  #rhythm_class[rel_dur <= .45] <- -2
-  rhythm_class[rel_dur > 0.45] <- -1
-  rhythm_class[rel_dur > 0.9] <- 0
-  rhythm_class[rel_dur > 1.8] <- 1
-  rhythm_class[rel_dur > 3.3] <- 2
-  rhythm_class
-}
-
-#' Segment a note track by adding phrasend and phrasbeg columns with boolean markers.
-#'
-#' @param note_track a data frame with an "onset" column
-#'
-#' @return
-#' @export
-#'
-#' @examples
-segment_phrase <- function(note_track){
-  # (originally add_phrase_info from KF)
-  note_track <- note_track %>% dplyr::mutate(ioi = c(0, diff(onset)), note_pos = 1:dplyr::n())
-  outliers <- note_track %>% dplyr::pull(ioi) %>% boxplot(plot = FALSE) %>% `[[`("out")
-  outliers <- outliers[outliers > .65]
-  r <- note_track %>%
-    dplyr::mutate(phrasend = as.numeric(ioi >.96 | ioi %in% outliers),
-                  phrasbeg = as.numeric(dplyr::lag(phrasend) | note_pos == 1))
-
-  r$phrasend[is.na(r$phrasend)] <- 0
-  r$phrasend[length(r$phrasend)] <- 1
-  r
-}
-
-
-#' Get the cents between two vectors
-#'
-#' @param vectora
-#' @param vectorb
-#'
-#' @return
-#' @export
-#'
-#' @examples
-vector_cents_between_two_vectors <- function(vectora, vectorb) {
-  # for each note (as a freq) in a vector, get the cents difference of each note in vector A and vector B
-  res <- c()
-  for (n in 1:length(vectora)) {
-    cent_res <- cents(vectora[n], vectorb[n])
-    res <- c(res, cent_res)
-  }
-  res
-}
-
-
-#' Get cents between two notes
-#'
-#' @param notea The frequency in Hz of note a.
-#' @param noteb The frequency in Hz of note b.
-#'
-#' @return
-#' @export
-#'
-#' @examples
-cents <- function(notea, noteb) {
-  # get the cents between two notes (as frequencies)
-  res <- 1200 * log2(noteb/notea)
-  res
-}
-
-#' Get cents between vector and reference note
-#'
-#' @param reference_note In Hz.
-#' @param vector_of_values In Hz.
-#'
-#' @return
-#' @export
-#'
-#' @examples
-vector_cents <- function(reference_note, vector_of_values) {
-  # given a vector of values and a target note, give the cents of the vector note relative to the target note
-  res <- vapply(vector_of_values, cents, "notea" = reference_note, FUN.VALUE = 100.001)
-  res
-}
-
 
 
 vector_cents_first_note <- function(vector_of_values) {
@@ -445,6 +463,49 @@ vector_cents_first_note <- function(vector_of_values) {
 
 
 not_all_na <- function(x) any(!is.na(x))
+
+
+remove_slash <- function(x) {
+  if(substr(x, 1, 1) == "/") {
+    substr(x, 2, nchar(x))
+  }
+}
+
+convert_pitches_and_durs <- function(pitches, durs, relativeMelodies, relativeDurations, tempo) {
+  if(relativeMelodies) {
+    pitches <- diff(pitches)
+  }
+  if(!relativeDurations) {
+    durations <- rel_bpm_to_seconds(as.numeric(unlist(durs)), bpm = tempo)
+  }
+  list("pitches" = pitches,
+       "durations" = round(durations, 2))
+}
+
+
+input_check <- function(midi_file_dir, musicxml_file_dir, input_df) {
+
+  if(is.null(midi_file_dir) & is.null(musicxml_file_dir) & is.null(input_df)) {
+
+      stop('At least one of midi_file_dir, musicxml_file_dir or input_df is required.')
+
+  } else if(!is.null(midi_file_dir) & !is.null(input_df)) {
+
+      stop('You may only use the input_df OR the midi_file_dir arguments.')
+
+  } else if(!is.null(musicxml_file_dir) & !is.null(input_df)) {
+
+      stop('You may only use the input_df OR the musicxml_file_dir arguments.')
+
+  } else if(!is.null(midi_file_dir) & !is.null(musicxml_file_dir) & !is.null(input_df)) {
+
+      stop('You may only use the input_df OR the musicxml_file_dir and midi_file_dir arguments.')
+
+  } else {
+      return()
+  }
+
+}
 
 # tests
 
