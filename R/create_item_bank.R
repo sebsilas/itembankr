@@ -1,5 +1,9 @@
 
 
+# t <- corpus_to_item_bank("Test", input = "phrase_df", output = "all",
+# input_df = tibble::tibble(abs_melody = rep("61,62,63,64,65,66", 2), durations = rep("1,2,3,4,5,6", 2)))
+# t2 <- t("ngram")
+
 
 # TODO: Documentation
 
@@ -76,9 +80,12 @@ corpus_to_item_bank <- function(name = "",
         dplyr::mutate(orig_melody = paste0(diff(str_mel_to_vector(abs_melody)), collapse = ","),
                       orig_N = length(str_mel_to_vector(abs_melody))) %>%
         dplyr::ungroup() %>%
-        dplyr::rename(orig_abs_melody = abs_melody,
-                      orig_durations = durations) %>%
+        dplyr::rename(orig_durations = durations) %>%
+        unique() %>%
         split_item_bank_into_ngrams() %>%
+        count_freqs() %>%
+        unique() %>%
+        compute_ngram_similarity() %>%
         get_melody_features() %>%
         dplyr::mutate(item_type = "ngram")
 
@@ -98,8 +105,9 @@ corpus_to_item_bank <- function(name = "",
     # if(!is.na(item_item_bank)) {
     #   combined_item_bank <- rbind(combined_item_bank, item_item_bank)
     # }
-    combined_item_bank <- NA
   }
+
+  combined_item_bank <- NA # for now
 
 
   if(!is.na(file_item_bank)) file_item_bank <- janitor::remove_empty(file_item_bank, which = "cols")
@@ -119,7 +127,10 @@ corpus_to_item_bank <- function(name = "",
     l[[key]]
   }
 
-  save(item_bank, file = paste0(name, ".rda"))
+  #save(item_bank, file = paste0(name, ".rda"))
+  #save(item_bank, file = paste0(name, ".rda"))
+  save(phrases_item_bank, file = paste0(name, '_phrase.rda'))
+  save(ngram_item_bank, file = paste0(name, '_ngram.rda'))
 
   if(launch_app) {
     itembankexplorer::item_bank_explorer(item_bank("phrase"))

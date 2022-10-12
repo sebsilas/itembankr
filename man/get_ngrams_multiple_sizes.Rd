@@ -4,7 +4,7 @@
 \alias{get_ngrams_multiple_sizes}
 \title{Get ngrams of multiple sizes}
 \usage{
-get_ngrams_multiple_sizes(abs_melody, M)
+get_ngrams_multiple_sizes(rel_melody, M)
 }
 \arguments{
 \item{M}{}
