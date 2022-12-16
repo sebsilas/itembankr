@@ -93,6 +93,15 @@ summary.phr.features <- function(phr.data,poly.contour=TRUE){
 	results
 
 	}
+#' Compute entropy
+#'
+#' @param integer.vector
+#' @param alphabet.size
+#'
+#' @return
+#' @export
+#'
+#' @examples
 compute.entropy <- function(integer.vector,alphabet.size=2) {
 	tab <- table(integer.vector)
 	normal.tab <- tab / sum(tab)

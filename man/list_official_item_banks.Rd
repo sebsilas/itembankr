@@ -4,7 +4,7 @@
 \alias{list_official_item_banks}
 \title{List official itembankr item banks for use}
 \usage{
-list_official_item_banks()
+list_official_item_banks(default = "Berkowitz")
 }
 \value{
 
