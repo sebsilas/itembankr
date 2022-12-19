@@ -245,10 +245,10 @@ midi_to_pitch_class_numeric <- function(midi_note) {
 #' @examples
 midi_to_sci_notation <- function(midi_note) {
   if (length(midi_note) == 1) {
-    pitch_class <- midi.to.sci.notation.list[[as.character(midi_note)]]
+    pitch_class <- if(is.na(midi_note)) NA else midi.to.sci.notation.list[[as.character(midi_note)]]
   } else {
     pitch_class <- unlist(lapply(midi_note, function(x) {
-      midi.to.sci.notation.list[[as.character(x)]]
+      if(is.na(x)) NA else midi.to.sci.notation.list[[as.character(x)]]
       }))
   }
 }
