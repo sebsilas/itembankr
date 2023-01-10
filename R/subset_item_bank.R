@@ -29,7 +29,7 @@ subset_item_bank <- function (item_bank,
                                            dplyr::between(span, span_min, span_max),
                                            mean_duration > min_mean_duration)
 
-  if(!is.na(quantile_cut)) {
+  if(!is.na(quantile_cut) & "log_freq" %in% names(item_bank)) {
     item_bank <- item_bank %>% dplyr::filter(log_freq >= quantile_cut)
   }
 
