@@ -9,43 +9,45 @@
 #' @export
 #'
 #' @examples
-get_melody_features <- function(df, mel_sep = ",", durationMeasures = TRUE) {
+get_melody_features <- function(df, mel_sep = ",", durationMeasures = TRUE, abs_melody_name = "abs_melody") {
 
   if(durationMeasures & ! "durations" %in% names(df)) {
     stop("If durationMeasures is TRUE, there must be a durations column in dataframe.")
   }
 
-  if(is.null(df$melody)) {
-    df <- df %>%
-      dplyr::rowwise() %>%
-      dplyr::mutate(melody = paste0(diff(str_mel_to_vector(abs_melody)), collapse = ",")) %>%
-      dplyr::ungroup()
+  if(abs_melody_name %in% names(df)) {
+    df <- df %>% dplyr::filter(!is.na( !!abs_melody_name ))
   }
 
-  print(df)
+  abs_melody_name <- as.name(abs_melody_name)
 
   df <- df %>%
-    dplyr::filter(!is.na(melody)) %>%
     dplyr::rowwise() %>%
     dplyr::mutate(
-      N = as.numeric(length(str_mel_to_vector(melody)) + 1),
+      melody = paste0(diff(str_mel_to_vector(!! abs_melody_name)), collapse = ","),
+      N = length(as.numeric(str_mel_to_vector(!! abs_melody_name))),
       # interval entropy
-      i.entropy = compute.entropy(itembankr::rel_to_abs_mel(str_mel_to_vector(melody)), phr.length.limits[2]-1),
+      i.entropy = compute.entropy(str_mel_to_vector(!! abs_melody_name), phr.length.limits[2]-1),
       # calculate melody spans, to make sure melodies can be presented within a user's range
-      span = compute_span(str_mel_to_vector(melody))
+      span = compute_span(str_mel_to_vector(!! abs_melody_name))
     ) %>%
     dplyr::ungroup()
 
   # tonality
-  tonality <- purrr::map_dfr(df$melody, get_tonality, mel_sep)
+  tonality <- df %>%
+    dplyr::select(!! abs_melody_name) %>%
+    purrr::map_dfr(get_tonality, mel_sep)
 
   # step contour
-  step_contour_df <- purrr::map_dfr(df$melody, function(x) get_step_contour(str_mel_to_vector(x, mel_sep), TRUE)) %>%
+  step_contour_df <- df %>%
+    dplyr::select(!! abs_melody_name) %>%
+    purrr::map_dfr(get_step_contour, mel_sep = mel_sep, relative = FALSE) %>%
     dplyr::select(step.cont.glob.var, step.cont.glob.dir, step.cont.loc.var)
 
 
   # difficulty measures from Klaus
-  difficulty_measures <- purrr::map_dfr(df$melody, function(x) int_ngram_difficulty(int_to_pattern(itembankr::rel_to_abs_mel(x)))) %>%
+  difficulty_measures <- df %>% dplyr::select(!! abs_melody_name) %>%
+    purrr::map_dfr(function(x) int_ngram_difficulty(int_to_pattern(x))) %>%
     dplyr::select(-value)
 
 
@@ -58,7 +60,7 @@ get_melody_features <- function(df, mel_sep = ",", durationMeasures = TRUE) {
 
     df <- df %>% cbind(duration_df)
 
-    if(!is.null(df$durations) & !is.na(df$durations)) {
+    if(!is_null_scalar(df$durations) & !is_na_scalar(df$durations)) {
       df <- df %>%
         dplyr::rowwise() %>%
         dplyr::mutate(mean_duration = mean(itembankr::str_mel_to_vector(durations))) %>%
@@ -90,7 +92,7 @@ get_melody_features <- function(df, mel_sep = ",", durationMeasures = TRUE) {
 
 
 compute_span <- function(x) {
-  sum(abs(range(rel_to_abs_mel(x, start_note = 60))))
+  diff(range(x))
 }
 
 
@@ -119,10 +121,11 @@ count_freqs <- function(item_bank) {
 }
 
 
-get_tonality <- function(melody, sep) {
+get_tonality <- function(abs_melody, sep) {
+
   # wrap the FANTASTIC functions and add in some default durations if need be
-  if (!is.na(melody)) {
-    pitch <- rel_to_abs_mel(str_mel_to_vector(melody, sep))
+  if (!is_na_scalar(abs_melody)) {
+    pitch <- str_mel_to_vector(abs_melody, sep)
     len <- length(pitch)
     dur16 <- rep(.25, length(pitch))
     tonality.vector <- compute.tonality.vector(pitch,dur16,make.tonal.weights(maj.vector,min.vector))
@@ -136,22 +139,23 @@ get_tonality <- function(melody, sep) {
 }
 
 # add local stepwise contour
-get_step_contour <- function(melody, relative = TRUE) {
+get_step_contour <- function(melody, mel_sep = ",", relative = FALSE) {
 
-  # wrap the FANTASTIC functions and add in some default durations
-  if(relative) {
-    melody <- rel_to_abs_mel(melody)
-  }
+  if(!is_na_scalar(melody)) {
 
-  if(!is.na(melody)) {
+    melody <- str_mel_to_vector(melody, sep = mel_sep)
+
+    # wrap the FANTASTIC functions and add in some default durations
+    if(relative) {
+      melody <- rel_to_abs_mel(melody)
+    }
+
     len <- length(melody)
     dur16 <- rep(.25, length(melody))
     step.contour.vector <- step.contour(melody,dur16)
     step.contour <- compute.step.cont.feat(step.contour.vector)
-  }
-
-  else {
-    ton.results <- as.data.frame(matrix(c(NA, NA, NA, NA), nrow = 1, ncol = 4))
+  } else {
+    ton.results <- matrix(c(NA, NA, NA, NA), nrow = 1, ncol = 4) %>% as.data.frame()
   }
 }
 
@@ -187,7 +191,6 @@ int_ngram_difficulty <- function(pattern){
   if(length(pattern) > 1){
     return(purrr::map_dfr(pattern, int_ngram_difficulty))
   }
-  #browser()
   v <- pattern_to_int(pattern)
   mean_abs_int <- mean(abs(v))
   int_range <- max(abs(v))
@@ -231,8 +234,6 @@ int_to_pattern <- function (v) {
 #'
 #' @examples
 hist_item_bank <- function(item_bank, nrow = NULL, ncol = NULL) {
-
-  warning("Selecting only numeric columns")
 
   item_bank %>%
     dplyr::select(where(is.numeric)) %>%

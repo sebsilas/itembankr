@@ -23,7 +23,12 @@ Imports:
     hrep (>= 0.15.0),
     stringr,
     janitor,
-    assertthat
+    assertthat,
+    tibble,
+    stats
 RoxygenNote: 7.1.1
 Remotes: 
     pmcharrison/hrep
+Suggests: 
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3

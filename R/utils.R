@@ -1,4 +1,100 @@
 
+
+#' Make sure melodies have a minimum absolute value of x (and scale the rest of the durations to this minimum value).
+#'
+#' @param df
+#' @param x
+#'
+#' @return
+#' @export
+#'
+#' @examples
+scale_durations_to_have_min_abs_value_of_x_seconds <- function(df, x = 0.25) {
+  df %>%
+    dplyr::rowwise() %>%
+    dplyr::mutate(durations_v = list( str_mel_to_vector(durations) ),
+           min_duration = min( unlist(durations_v) , na.rm = TRUE),
+           min_dur_scale_factor = x/min_duration,
+           durations_v = list(
+             dplyr::case_when(min_dur_scale_factor > 1 ~ round(durations_v * min_dur_scale_factor, 2), TRUE ~ durations_v)
+           ),
+           durations = paste0(unlist(durations_v), collapse = ",") ) %>% # corrected
+    dplyr::ungroup() %>%
+    dplyr::select(-c(durations_v, min_duration, min_dur_scale_factor))
+}
+
+
+
+is.null.or <- function(x, f) {
+  is.null(x) || f(x)
+}
+
+is.scalar.character <- function(x) {
+  is.character(x) && is.scalar(x)
+}
+
+is.scalar.numeric <- function(x) {
+  is.numeric(x) && is.scalar(x)
+}
+
+is.scalar.logical <- function(x) {
+  is.logical(x) && is.scalar(x)
+}
+
+is.scalar <- function(x) {
+  identical(length(x), 1L)
+}
+
+#' Check item bank class
+#'
+#' @param x
+#'
+#' @return
+#' @export
+is_item_bank <- function(x) is(x, "item_bank")
+
+
+#' Unclass item bank class (to tibble)
+#'
+#' @param x
+#'
+#' @return
+#' @export
+unclass_item_bank <- function(x) if(is(x, "item_bank")) tibble::as_tibble(x) else x
+
+#' Set item bank class
+#'
+#' @param obj
+#' @param extra
+#'
+#' @return
+#' @export
+#'
+#' @examples
+set_item_bank_class <- function(obj, extra = NULL) {
+
+  stopifnot(is.null(extra) | assertthat::is.string(extra))
+
+  suppressWarnings({ # is.na() will warn when it checks a function
+    if(is_na_scalar(obj)) {
+      return(NA)
+    } else {
+
+      attr(obj, "class") <- c(class(obj), "item_bank")
+
+      if(is.null(extra)) {
+        return(obj)
+      } else {
+        attr(obj, "class") <- c(class(obj), extra)
+        return(obj)
+      }
+
+    }
+  })
+
+
+}
+
 #' Get all ngrams from a given vector
 #'
 #' @param x
@@ -13,47 +109,11 @@ get_all_ngrams <- function(x, N = 3){
   stopifnot(l > 0)
   purrr::map_dfr(1:l, function(i){
     ngram <- x[i:(i + N - 1)]
-    tidyr::tibble(start = i, N = N, value = paste(ngram, collapse = ","))
+    tibble::tibble(start = i, N = N, value = paste(ngram, collapse = ","))
   })
 }
 
 
-#' Produce extra melodic features from a pyin note track
-#'
-#' @param pyin_style_res
-#'
-#' @return
-#' @export
-#'
-#' @examples
-produce_extra_melodic_features <- function(pyin_style_res) {
-
-  if(!"note" %in% names(pyin_style_res) & "freq" %in% names(pyin_style_res)) {
-    pyin_style_res <- pyin_style_res %>%
-      dplyr::mutate(note = round(hrep::freq_to_midi(freq)))
-  }
-
-  pyin_style_res <- pyin_style_res %>%
-    dplyr::mutate(
-      sci_notation = midi_to_sci_notation(note),
-      interval = c(NA, diff(note)),
-      ioi = c(NA, diff(onset)),
-      ioi_class = classify_duration(ioi)) %>%
-    segment_phrase()
-
-  if(!"freq" %in% names(pyin_style_res)) {
-    pyin_style_res <- pyin_style_res %>% dplyr::mutate(freq = hrep::midi_to_freq(note))
-  }
-
-  pyin_style_res %>% dplyr::mutate(
-    cents_deviation_from_nearest_midi_pitch = vector_cents_between_two_vectors(round(hrep::midi_to_freq(hrep::freq_to_midi(freq))), freq),
-    # the last line looks tautological, but, by converting back and forth, you get the quantised pitch and can measure the cents deviation from this
-    pitch_class = midi_to_pitch_class(round(hrep::freq_to_midi(freq))),
-    pitch_class_numeric = midi_to_pitch_class(round(hrep::freq_to_midi(freq))),
-    interval_cents = itembankr::cents(dplyr::lag(freq), freq)
-  )
-
-}
 
 #' Classify ioi class (see Frieler.. )
 #'
@@ -508,18 +568,33 @@ input_check <- function(midi_file_dir, musicxml_file_dir, input_df) {
 
 }
 
-# tests
 
-#rel_bpm_to_seconds(c(2, 2, 4, 2, 2), bpm = 120)
 
-#microseconds_per_beat_to_bpm(500000)
+get_item_bank_name <- function(item_bank) attr(item_bank, which = "item_bank_name")
 
-#sci_notation_to_midi(c("C#4", "Eb4", "G#4", "Bb4", "A#4", "Db4", "E#4", "Gb2"))
+is_na_scalar <- function(x) {
+  all(is.na(x)) & length(x) == 1
+}
 
-# tibble::tibble(note = c(60, 63, 52),
-#                 freq = c(440, 550, 660),
-#                 dur = c(1, 1, 2),
-#                 onset = c(0, 1, 3)) %>% produce_extra_melodic_features()
+is_null_scalar <- function(x) {
+  all(is.null(x)) & length(x) == 1
+}
 
+
+sym_diff <- function(a,b) setdiff(union(a,b), intersect(a,b))
+
+
+possible_output_types <- function() {
+  c("all", "file", "item", "phrase", "ngram", "combined")
+}
+
+
+rename_to_parent <- function(df) {
+  df %>%
+    dplyr::rename(parent_abs_melody = abs_melody,
+                  parent_melody = melody,
+                  parent_durations = durations,
+                  parent_N = N)
+}
 
 

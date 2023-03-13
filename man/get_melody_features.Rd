@@ -4,7 +4,12 @@
 \alias{get_melody_features}
 \title{For a db of melodies, get melodic features}
 \usage{
-get_melody_features(df, mel_sep = ",", durationMeasures = TRUE)
+get_melody_features(
+  df,
+  mel_sep = ",",
+  durationMeasures = TRUE,
+  abs_melody_name = "abs_melody"
+)
 }
 \arguments{
 \item{df}{with column "melody" as a relative melody e.g, 2, 2, -1, 3 and "freq" a count of the number of occurrences of the dataset from which it came}

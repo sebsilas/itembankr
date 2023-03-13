@@ -19,6 +19,16 @@ subset_item_bank <- function (item_bank,
                               tonality = NULL,
                               min_mean_duration = 0) {
 
+  stopifnot(tibble::is_tibble(item_bank),
+           is.null.or(item_length, function(x) length(x) %in% 1:2),
+           is.scalar.numeric(quantile_cut),
+            is.scalar.numeric(span_min),
+            is.scalar.numeric(span_max),
+           is.null.or(tonality, assertthat::is.string),
+           is.scalar.numeric(min_mean_duration))
+
+  item_bank <- unclass_item_bank(item_bank)
+
   item_length <- parse_item_bank_length(item_length, item_bank)
 
   if (!is.null(tonality)) {
@@ -39,11 +49,6 @@ subset_item_bank <- function (item_bank,
 
 top_quantile <- function(item_bank, quantile_cut = .95) {
   cut <- quantile(item_bank$log_freq, 1-quantile_cut)
-  print(cut)
-  # filt <- item_bank %>% dplyr::filter(log_freq > cut)
-  # ggplot(filt) +
-  #   geom_histogram(aes(log_freq))
-  cut
 }
 
 
@@ -67,22 +72,31 @@ parse_item_bank_length <- function(specified_length, item_bank) {
 }
 
 
+is.scalar.character <- function(x) {
+  is.character(x) && is.scalar(x)
+}
 
+is.scalar.numeric <- function(x) {
+  is.numeric(x) && is.scalar(x)
+}
 
-# d_1 <- subset_item_bank(item_bank = WJD, item_length = 5:15, span_min = 12, span_max = 30, tonality = "major")
-#
-# d_2 <- subset_item_bank(item_bank = WJD, item_length = 5:15, span_min = 12, tonality = "minor")
-#
-# d_3 <- subset_item_bank(item_bank = WJD, item_length = 5:15, span_min = 12, tonality = "minor")
-#
-# d_4 <- subset_item_bank(item_bank = WJD, item_length = c(3, NA))
-#
-# d_5 <- subset_item_bank(item_bank = WJD, item_length = 3)
+is.scalar.logical <- function(x) {
+  is.logical(x) && is.scalar(x)
+}
 
-# item_bank_sub <- subset_item_bank(item_bank = WJD, N_range = c(3, NULL), span_min = 12, tonality = "major")
+is.scalar <- function(x) {
+  identical(length(x), 1L)
+}
 
+is.integerlike <- function(x) {
+  all(round(x) == x)
+}
 
-#subset_item_bank(item_bank = WJD)
-# subset_item_bank(item_bank = Berkowitz("phrases"))
+is.scalar.integerlike <- function(x) {
+  is.scalar(x) && is.integerlike(x)
+}
 
+is.null.or <- function(x, f) {
+  is.null(x) || f(x)
+}
 

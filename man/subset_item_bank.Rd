@@ -7,9 +7,10 @@
 subset_item_bank(
   item_bank,
   item_length = NULL,
-  quantile_cut = NULL,
-  span_min = NULL,
-  span_max = NULL,
+  quantile_cut = if ("log_freq" \%in\% names(item_bank)) min(item_bank$log_freq) else
+    -Inf,
+  span_min = min(item_bank$span),
+  span_max = max(item_bank$span),
   tonality = NULL,
   min_mean_duration = 0
 )
