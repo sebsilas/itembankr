@@ -234,7 +234,12 @@ vector_cents <- function(reference_note, vector_of_values) {
 #'
 #' @examples
 rel_to_abs_mel <- function(rel_mel, start_note = 60) {
-  c(0, cumsum(rel_mel)) + start_note
+  stopifnot(
+    is.numeric(rel_mel) & length(rel_mel) > 0,
+    is.scalar.numeric(start_note)
+    )
+  rel_mel <- c(0, cumsum(rel_mel))
+  rel_mel + start_note
 }
 
 
