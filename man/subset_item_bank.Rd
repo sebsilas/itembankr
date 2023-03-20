@@ -12,11 +12,12 @@ subset_item_bank(
   span_min = min(item_bank$span),
   span_max = max(item_bank$span),
   tonality = NULL,
-  min_mean_duration = 0
+  min_mean_duration = 0,
+  return_as_item_bank_class = FALSE
 )
 }
 \arguments{
-\item{tonality}{}
+\item{return_as_item_bank_class}{}
 }
 \value{
 

@@ -7,6 +7,7 @@
 #' @param span_min
 #' @param span_max
 #' @param tonality
+#' @param return_as_item_bank_class
 #'
 #' @return
 #' @export
@@ -17,7 +18,8 @@ subset_item_bank <- function (item_bank,
                               span_min = min(item_bank$span),
                               span_max = max(item_bank$span),
                               tonality = NULL,
-                              min_mean_duration = 0) {
+                              min_mean_duration = 0,
+                              return_as_item_bank_class = FALSE) {
 
   stopifnot(tibble::is_tibble(item_bank),
            is.null.or(item_length, function(x) length(x) %in% 1:2),
@@ -25,7 +27,8 @@ subset_item_bank <- function (item_bank,
             is.scalar.numeric(span_min),
             is.scalar.numeric(span_max),
            is.null.or(tonality, assertthat::is.string),
-           is.scalar.numeric(min_mean_duration))
+           is.scalar.numeric(min_mean_duration),
+           is.scalar.logical(return_as_item_bank_class))
 
   item_bank <- unclass_item_bank(item_bank)
 
