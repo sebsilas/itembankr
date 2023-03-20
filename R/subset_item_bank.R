@@ -46,7 +46,9 @@ subset_item_bank <- function (item_bank,
     item_bank <- item_bank %>% dplyr::filter(log_freq >= quantile_cut)
   }
 
-  # Leave unclassed
+  if(return_as_item_bank_class) {
+    item_bank <- item_bank %>% set_item_bank_class()
+  }
   item_bank
 }
 
