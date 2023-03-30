@@ -9,13 +9,20 @@ create_item_bank_from_files <- function(midi_file_dir = NULL,
     midi_files <- list.files(path = midi_file_dir, pattern = "\\.mid$",  full.names = TRUE, ignore.case = TRUE)
     midi_files_df <- purrr::map_dfr(midi_files, function(f) {
       print(f)
-      midi_file_to_notes_and_durations(f, produce_extra_melodic_features = FALSE)
+      tryCatch({
+        midi_file_to_notes_and_durations(f, produce_extra_melodic_features = FALSE) },
+        error = function(err) {
+          print(paste0("Error with ", f))
+          print(err)
+          tibble::tibble(onset = NA, durations = NA, note = NA, midi_file = f, N = NA)
+        })
     })  %>%
       dplyr::mutate(file_key = tools::file_path_sans_ext(midi_file)) %>%
       dplyr::rename(abs_melody = note) %>%
       dplyr::select(abs_melody, durations, midi_file, file_key)
 
-    res <- midi_files_df
+    res <- midi_files_df %>%
+      filter(!is.na(abs_melody))
 
   }
 
