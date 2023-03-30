@@ -98,14 +98,6 @@ compute_span <- function(x) {
 
 # internal functions
 
-get_rel_freq <- function(freq_col) {
-  # the column should be a column of frequency values for each item
-  res <- purrr::map_dbl(freq_col, function(x) x/sum(freq_col))
-  cat("Sanity check, this should at to 1: ", sum(res))
-  res
-}
-
-
 count_freqs <- function(item_bank) {
 
   values_counts <- item_bank %>%
@@ -116,7 +108,6 @@ count_freqs <- function(item_bank) {
 
   values_counts <- values_counts %>%
     dplyr::mutate(rel_freq = freq/total_freq,
-                  rel_freq = get_rel_freq(freq),
                   log_freq = log(rel_freq))
 }
 

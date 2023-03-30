@@ -46,6 +46,10 @@ subset_item_bank <- function (item_bank,
     item_bank <- item_bank %>% dplyr::filter(log_freq >= quantile_cut)
   }
 
+  if(nrow(item_bank) == 0) {
+    stop("No items could be found for this set of parameters. Try being less restrictive with your subset values, or use a different item bank.")
+  }
+
   if(return_as_item_bank_class) {
     item_bank <- item_bank %>% set_item_bank_class()
   }
