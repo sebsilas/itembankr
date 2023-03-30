@@ -108,7 +108,8 @@ count_freqs <- function(item_bank) {
 
   values_counts <- values_counts %>%
     dplyr::mutate(rel_freq = freq/total_freq,
-                  log_freq = log(rel_freq))
+                  log_freq = log(rel_freq),
+                  idf = log( nrow(item_bank)/freq) )
 }
 
 
