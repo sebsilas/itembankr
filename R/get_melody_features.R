@@ -48,7 +48,7 @@ get_melody_features <- function(df, mel_sep = ",", durationMeasures = TRUE, abs_
   # difficulty measures from Klaus
   difficulty_measures <- df %>%
     dplyr::pull(!! abs_melody_name) %>%
-    purrr::map_dfr(function(x) int_ngram_difficulty(int_to_pattern(diff(x)))) %>%
+    purrr::map_dfr(function(x) int_ngram_difficulty(int_to_pattern(diff(str_mel_to_vector(x))))) %>%
     dplyr::select(-value)
 
 
