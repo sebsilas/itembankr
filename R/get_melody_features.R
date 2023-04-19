@@ -35,19 +35,20 @@ get_melody_features <- function(df, mel_sep = ",", durationMeasures = TRUE, abs_
 
   # tonality
   tonality <- df %>%
-    dplyr::select(!! abs_melody_name) %>%
+    dplyr::pull(!! abs_melody_name) %>%
     purrr::map_dfr(get_tonality, mel_sep)
 
   # step contour
   step_contour_df <- df %>%
-    dplyr::select(!! abs_melody_name) %>%
+    dplyr::pull(!! abs_melody_name) %>%
     purrr::map_dfr(get_step_contour, mel_sep = mel_sep, relative = FALSE) %>%
     dplyr::select(step.cont.glob.var, step.cont.glob.dir, step.cont.loc.var)
 
 
   # difficulty measures from Klaus
-  difficulty_measures <- df %>% dplyr::select(!! abs_melody_name) %>%
-    purrr::map_dfr(function(x) int_ngram_difficulty(int_to_pattern(x))) %>%
+  difficulty_measures <- df %>%
+    dplyr::pull(!! abs_melody_name) %>%
+    purrr::map_dfr(function(x) int_ngram_difficulty(int_to_pattern(diff(x)))) %>%
     dplyr::select(-value)
 
 
@@ -55,7 +56,10 @@ get_melody_features <- function(df, mel_sep = ",", durationMeasures = TRUE, abs_
 
   if(durationMeasures) {
     # duration measures
-    duration_df <- purrr::map_dfr(df$durations, get_duration_measures)
+    duration_df <-  df %>%
+      dplyr::pull(durations) %>%
+      purrr::map_dfr(get_duration_measures)
+
     names(duration_df) <- c("d.entropy", "d.eq.trans")
 
     df <- df %>% cbind(duration_df)
@@ -113,7 +117,7 @@ count_freqs <- function(item_bank) {
 }
 
 
-get_tonality <- function(abs_melody, sep) {
+get_tonality <- function(abs_melody, sep = ",") {
 
   # wrap the FANTASTIC functions and add in some default durations if need be
   if (!is_na_scalar(abs_melody)) {

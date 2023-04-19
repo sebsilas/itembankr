@@ -14,6 +14,7 @@
 #' @param remove_melodies_with_only_repeated_notes Remove any melodies which consist only of a single note repeated.
 #' @param remove_melodies_with_any_repeated_notes Remove any melodies which contain any consecutive repeated notes.
 #' @param scale_durations_to_have_min_abs_value_of_x_seconds Scale melody durations to have a minimum of x seconds.
+#' @param slice_head NULL by default. Can be an integer to slice up to a certain number of items - useful for testing.
 #'
 #' @return
 #' @export
@@ -29,7 +30,8 @@ create_item_bank <- function(name = "",
                             remove_redundancy = TRUE,
                             remove_melodies_with_only_repeated_notes = TRUE,
                             remove_melodies_with_any_repeated_notes = FALSE,
-                            scale_durations_to_have_min_abs_value_of_x_seconds = 0.25) {
+                            scale_durations_to_have_min_abs_value_of_x_seconds = 0.25,
+                            slice_head = NULL) {
 
   stopifnot(
     assertthat::is.string(name),
@@ -44,7 +46,8 @@ create_item_bank <- function(name = "",
     is.logical(remove_redundancy),
     is.scalar.logical(remove_melodies_with_only_repeated_notes),
     is.scalar.logical(remove_melodies_with_any_repeated_notes),
-    is.scalar.numeric(scale_durations_to_have_min_abs_value_of_x_seconds)
+    is.scalar.numeric(scale_durations_to_have_min_abs_value_of_x_seconds),
+    is.null.or(slice_head, is.scalar.numeric)
   )
 
   input_check(midi_file_dir, musicxml_file_dir, input_df)
@@ -55,7 +58,7 @@ create_item_bank <- function(name = "",
 
   # Create file item bank
   if(input == "files") {
-    file_item_bank <- create_item_bank_from_files(midi_file_dir, musicxml_file_dir) %>%
+    file_item_bank <- create_item_bank_from_files(midi_file_dir, musicxml_file_dir, slice_head) %>%
       remove_melodies(remove_melodies_with_only_repeated_notes, remove_melodies_with_any_repeated_notes) %>%
       dplyr::mutate(item_type = "file",
                     item_id = paste0(name, "_", item_type, "_", dplyr::row_number()))
@@ -83,7 +86,6 @@ create_item_bank <- function(name = "",
   } else {
     item_item_bank <- NA
   }
-
 
   # Create phrase item bank (with features) i.e., chop up items based on segmentation
   if(input %in% c("files", "item_df", "phrase_df") & any(output %in% c("phrase", "all", "combined")))  {

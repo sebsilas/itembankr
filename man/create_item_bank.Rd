@@ -15,7 +15,8 @@ create_item_bank(
   remove_redundancy = TRUE,
   remove_melodies_with_only_repeated_notes = TRUE,
   remove_melodies_with_any_repeated_notes = FALSE,
-  scale_durations_to_have_min_abs_value_of_x_seconds = 0.25
+  scale_durations_to_have_min_abs_value_of_x_seconds = 0.25,
+  slice_head = NULL
 )
 }
 \arguments{
@@ -40,6 +41,8 @@ create_item_bank(
 \item{remove_melodies_with_any_repeated_notes}{Remove any melodies which contain any consecutive repeated notes.}
 
 \item{scale_durations_to_have_min_abs_value_of_x_seconds}{Scale melody durations to have a minimum of x seconds.}
+
+\item{slice_head}{NULL by default. Can be an integer to slice up to a certain number of items - useful for testing.}
 }
 \value{
 

@@ -1,17 +1,22 @@
 
 
 create_item_bank_from_files <- function(midi_file_dir = NULL,
-                                        musicxml_file_dir = NULL) {
+                                        musicxml_file_dir = NULL,
+                                        slice_head = NULL) {
 
 
   if(!is.null(midi_file_dir)) {
 
     midi_files <- list.files(path = midi_file_dir, pattern = "\\.mid$",  full.names = TRUE, ignore.case = TRUE)
+
+    if(!is.null(slice_head)) midi_files <- midi_files[1:slice_head]
+
     midi_files_df <- purrr::map_dfr(midi_files, function(f) {
       print(f)
       tryCatch({
         midi_file_to_notes_and_durations(f, produce_extra_melodic_features = FALSE) },
         error = function(err) {
+          f <- basename(f)
           print(paste0("Error with ", f))
           print(err)
           tibble::tibble(onset = NA, durations = NA, note = NA, midi_file = f, N = NA)
