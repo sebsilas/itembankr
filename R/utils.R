@@ -603,3 +603,27 @@ rename_to_parent <- function(df) {
 }
 
 
+# Plotting functions
+
+
+#' Plot histograms of the item bank vars/features
+#'
+#' @param item_bank
+#' @param nrow
+#' @param ncol
+#'
+#' @return
+#' @export
+#'
+#' @examples
+hist_item_bank <- function(item_bank, nrow = NULL, ncol = NULL) {
+
+  item_bank %>%
+    dplyr::select(where(is.numeric)) %>%
+    tidyr::gather() %>%
+    ggplot2::ggplot(ggplot2::aes(value)) +
+    ggplot2::geom_histogram() +
+    ggplot2::facet_wrap(~key, scales = "free_x", nrow = nrow, ncol = ncol)
+
+}
+

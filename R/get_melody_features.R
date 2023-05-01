@@ -27,9 +27,10 @@ get_melody_features <- function(df, mel_sep = ",", durationMeasures = TRUE, abs_
       melody = paste0(diff(str_mel_to_vector(!! abs_melody_name)), collapse = ","),
       N = length(as.numeric(str_mel_to_vector(!! abs_melody_name))),
       # interval entropy
-      i.entropy = compute.entropy(str_mel_to_vector(!! abs_melody_name), phr.length.limits[2]-1),
+      i.entropy = compute.entropy(diff(str_mel_to_vector(!! abs_melody_name)), phr.length.limits[2]-1),
       # calculate melody spans, to make sure melodies can be presented within a user's range
-      span = compute_span(str_mel_to_vector(!! abs_melody_name))
+      span = compute_span(str_mel_to_vector(!! abs_melody_name)),
+      mean_information_content = get_mean_information_content(str_mel_to_vector(!! abs_melody_name))
     ) %>%
     dplyr::ungroup()
 
@@ -216,27 +217,26 @@ int_to_pattern <- function (v) {
 }
 
 
-# plotting functions
 
-
-#' Plot histograms of the item bank vars/features
-#'
-#' @param item_bank
-#' @param nrow
-#' @param ncol
-#'
-#' @return
-#' @export
-#'
-#' @examples
-hist_item_bank <- function(item_bank, nrow = NULL, ncol = NULL) {
-
-  item_bank %>%
-    dplyr::select(where(is.numeric)) %>%
-    tidyr::gather() %>%
-    ggplot2::ggplot(ggplot2::aes(value)) +
-    ggplot2::geom_histogram() +
-    ggplot2::facet_wrap(~key, scales = "free_x", nrow = nrow, ncol = ncol)
-
+get_mean_information_content <- function(seq) {
+  seq <- factor(seq)
+  mod <- ppm::new_ppm_simple(alphabet_size = 108)
+  res <- ppm::model_seq(mod, seq)
+  mean(res$information_content, na.rm = TRUE)
 }
+
+
+# get_mean_information_content(60:69) # No repetition
+#
+# # 7.630521
+#
+# get_mean_information_content(c(60, 60, 60, 61, 61)) # Bit of repetition
+#
+# # 3.875074
+#
+# get_mean_information_content(rep(60, 10)) # All repetition
+#
+# # 1.003912
+
+
 
