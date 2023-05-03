@@ -4,7 +4,7 @@
 \alias{compute.entropy}
 \title{Compute entropy}
 \usage{
-\method{compute}{entropy}(integer.vector, alphabet.size = 2)
+compute.entropy(integer.vector, alphabet.size = 2)
 }
 \arguments{
 \item{alphabet.size}{}
