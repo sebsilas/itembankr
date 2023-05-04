@@ -69,6 +69,7 @@ create_item_bank <- function(name = "",
 
   # Create item bank with features
   if(input %in% c("files", "item_df") & any(output %in% c("item", "all", "combined")))  {
+    phrase_item_bank <- NA # Might get overwritten later
     if(input == "files") {
       item_item_bank <- get_melody_features(file_item_bank)  %>%
         remove_melodies(remove_melodies_with_only_repeated_notes, remove_melodies_with_any_repeated_notes) %>%
