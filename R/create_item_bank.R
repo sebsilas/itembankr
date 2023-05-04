@@ -178,7 +178,13 @@ create_item_bank <- function(name = "",
     ngram_item_bank <- if(is_na_scalar(ngram_item_bank)) NA else ngram_item_bank %>% dplyr::distinct(melody, .keep_all = TRUE)
     combined_item_bank <- if(is_na_scalar(combined_item_bank)) NA else combined_item_bank %>% dplyr::distinct(melody, .keep_all = TRUE)
 
+  } else {
+    item_item_bank_orig_length <- NA
+    phrase_item_bank_orig_length <- NA
+    ngram_item_bank_orig_length <- NA
+    combined_item_bank_orig_length <- NA
   }
+
 
 
   if(!is_na_scalar(file_item_bank)) {
