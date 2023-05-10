@@ -173,10 +173,10 @@ create_item_bank <- function(name = "",
     combined_item_bank_orig_length <- if(is_na_scalar(combined_item_bank)) NA else nrow(combined_item_bank)
 
 
-    item_item_bank <- if(is_na_scalar(item_item_bank)) NA else item_item_bank %>% dplyr::distinct(melody, .keep_all = TRUE)
-    phrase_item_bank <- if(is_na_scalar(phrase_item_bank)) NA else phrase_item_bank %>% dplyr::distinct(melody, .keep_all = TRUE)
-    ngram_item_bank <- if(is_na_scalar(ngram_item_bank)) NA else ngram_item_bank %>% dplyr::distinct(melody, .keep_all = TRUE)
-    combined_item_bank <- if(is_na_scalar(combined_item_bank)) NA else combined_item_bank %>% dplyr::distinct(melody, .keep_all = TRUE)
+    item_item_bank <- if(is_na_scalar(item_item_bank)) NA else item_item_bank %>% dplyr::distinct(melody, durations, .keep_all = TRUE)
+    phrase_item_bank <- if(is_na_scalar(phrase_item_bank)) NA else phrase_item_bank %>% dplyr::distinct(melody, durations, .keep_all = TRUE)
+    ngram_item_bank <- if(is_na_scalar(ngram_item_bank)) NA else ngram_item_bank %>% dplyr::distinct(melody, durations, .keep_all = TRUE)
+    combined_item_bank <- if(is_na_scalar(combined_item_bank)) NA else combined_item_bank %>% dplyr::distinct(melody, durations, .keep_all = TRUE)
 
   } else {
     item_item_bank_orig_length <- NA

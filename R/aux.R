@@ -9,7 +9,7 @@
 #' @export
 #'
 #' @examples
-get_melodic_feature_table <- function(features = NULL) {
+get_melodic_feature_table <- function(features = NULL, return_kable = TRUE) {
 
   tbl <- tibble::tibble(
 
@@ -48,7 +48,7 @@ get_melodic_feature_table <- function(features = NULL) {
                     "The average information content contained in the pitch values of a melody. Can be thought of as quantifying a melody's self-similarity."),
 
     Equation = c(" - ",
-                 "freq", "rel_freq", "log_freq", "IDF",
+                 "freq", "rel_freq", " - ", "IDF",
                  "$- \\frac{ \\sum_{i} f_{i} \\cdot \\log_{2} f_{i}}{\\log_{2} 139}$",
 
                  "span",
@@ -69,11 +69,17 @@ get_melodic_feature_table <- function(features = NULL) {
                   "Müllensiefen, 2009", "Müllensiefen, 2009", "mean_duration", "Harrison, Bianco, Chait & Pearce (2020)")
   )
 
-  if(is.null(features)) {
-    return(tbl %>% knitr::kable(escape=FALSE))
-  } else {
-    return(dplyr::filter(tbl, Feature %in% features) %>% knitr::kable(escape=FALSE))
+  if(!is.null(features)) {
+    tbl <- tbl %>% dplyr::filter(Feature %in% features)
   }
+
+  if(return_kable) {
+    tbl <- tbl %>% knitr::kable(escape=FALSE)
+  } else {
+    warning("Remember to escape kable when you use it so the equations render")
+  }
+
+  return(tbl)
 
 }
 

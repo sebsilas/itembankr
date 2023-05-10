@@ -4,7 +4,7 @@
 \alias{get_melodic_feature_table}
 \title{Produce a table describing and operationalising melodic features (for paper-writing)}
 \usage{
-get_melodic_feature_table(features = NULL)
+get_melodic_feature_table(features = NULL, return_kable = TRUE)
 }
 \arguments{
 \item{features}{}

@@ -27,7 +27,7 @@ create_item_bank_from_files <- function(midi_file_dir = NULL,
       dplyr::select(abs_melody, durations, midi_file, file_key)
 
     res <- midi_files_df %>%
-      filter(!is.na(abs_melody))
+      dplyr::filter(!is.na(abs_melody))
 
   }
 
