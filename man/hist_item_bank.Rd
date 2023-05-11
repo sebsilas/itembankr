@@ -9,9 +9,6 @@ hist_item_bank(item_bank, nrow = NULL, ncol = NULL)
 \arguments{
 \item{ncol}{}
 }
-\value{
-
-}
 \description{
 Plot histograms of the item bank vars/features
 }

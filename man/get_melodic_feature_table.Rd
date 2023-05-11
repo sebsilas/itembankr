@@ -9,9 +9,6 @@ get_melodic_feature_table(features = NULL, return_kable = TRUE)
 \arguments{
 \item{features}{}
 }
-\value{
-
-}
 \description{
 Produce a table describing and operationalising melodic features (for paper-writing)
 }

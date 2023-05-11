@@ -19,9 +19,6 @@ subset_item_bank(
 \arguments{
 \item{return_as_item_bank_class}{}
 }
-\value{
-
-}
 \description{
 Subset Item Bank
 }

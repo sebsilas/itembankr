@@ -9,9 +9,6 @@ set_item_bank_class(obj, extra = NULL)
 \arguments{
 \item{extra}{}
 }
-\value{
-
-}
 \description{
 Set item bank class
 }

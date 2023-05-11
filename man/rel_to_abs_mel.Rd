@@ -9,9 +9,6 @@ rel_to_abs_mel(rel_mel, start_note = 60)
 \arguments{
 \item{start_note}{}
 }
-\value{
-
-}
 \description{
 Convert a relative melody to an absolute melody
 }

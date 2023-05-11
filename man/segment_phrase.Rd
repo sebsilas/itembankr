@@ -9,9 +9,6 @@ segment_phrase(note_track)
 \arguments{
 \item{note_track}{a data frame with an "onset" column}
 }
-\value{
-
-}
 \description{
 Segment a note track by adding phrasend and phrasbeg columns with boolean markers.
 }

@@ -9,9 +9,6 @@ unclass_item_bank(x)
 \arguments{
 \item{x}{}
 }
-\value{
-
-}
 \description{
 Unclass item bank class (to tibble)
 }

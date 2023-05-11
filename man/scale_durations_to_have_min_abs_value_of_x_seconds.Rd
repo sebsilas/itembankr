@@ -9,9 +9,6 @@ scale_durations_to_have_min_abs_value_of_x_seconds(df, x = 0.25)
 \arguments{
 \item{x}{}
 }
-\value{
-
-}
 \description{
 Make sure melodies have a minimum absolute value of x (and scale the rest of the durations to this minimum value).
 }

@@ -9,9 +9,6 @@ produce_arrhythmic_durations(x, dur = 0.5)
 \arguments{
 \item{dur}{}
 }
-\value{
-
-}
 \description{
 Produce arrhythmic durations for a given melody
 }

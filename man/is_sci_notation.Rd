@@ -9,9 +9,6 @@ is_sci_notation(x)
 \arguments{
 \item{x}{}
 }
-\value{
-
-}
 \description{
 Test if scientific music notation
 }

@@ -9,9 +9,6 @@ get_ngrams_multiple_sizes(abs_melody, M)
 \arguments{
 \item{M}{}
 }
-\value{
-
-}
 \description{
 Get ngrams of multiple sizes
 }

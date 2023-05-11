@@ -9,9 +9,6 @@ str_mel_to_vector(str_mel, sep = ",", numeric = TRUE)
 \arguments{
 \item{numeric}{}
 }
-\value{
-
-}
 \description{
 Convert a string of a melody, separated by a to a vector
 }

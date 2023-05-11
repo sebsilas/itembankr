@@ -44,9 +44,6 @@ create_item_bank(
 
 \item{slice_head}{NULL by default. Can be an integer to slice up to a certain number of items - useful for testing.}
 }
-\value{
-
-}
 \description{
 Convert corpus to item bank
 }

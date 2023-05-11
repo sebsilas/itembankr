@@ -11,9 +11,6 @@ cents(notea, noteb)
 
 \item{noteb}{The frequency in Hz of note b.}
 }
-\value{
-
-}
 \description{
 Get cents between two notes
 }

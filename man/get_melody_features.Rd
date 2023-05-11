@@ -16,9 +16,6 @@ get_melody_features(
 
 \item{durationMeasures}{}
 }
-\value{
-
-}
 \description{
 For a db of melodies, get melodic features
 }

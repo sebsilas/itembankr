@@ -9,9 +9,6 @@ produce_extra_melodic_features(pyin_style_res)
 \arguments{
 \item{pyin_style_res}{}
 }
-\value{
-
-}
 \description{
 Produce extra melodic features from a pyin note track
 }

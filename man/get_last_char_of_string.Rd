@@ -9,9 +9,6 @@ get_last_char_of_string(string)
 \arguments{
 \item{string}{}
 }
-\value{
-
-}
 \description{
 Grab the last character of a string
 }

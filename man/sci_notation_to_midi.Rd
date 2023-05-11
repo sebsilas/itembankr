@@ -9,9 +9,6 @@ sci_notation_to_midi(sci_notation)
 \arguments{
 \item{sci_notation}{}
 }
-\value{
-
-}
 \description{
 Convert musical scientific notation note to its corresponding representation as a MIDI note
 }

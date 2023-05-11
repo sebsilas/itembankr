@@ -11,9 +11,6 @@ vector_cents(reference_note, vector_of_values)
 
 \item{vector_of_values}{In Hz.}
 }
-\value{
-
-}
 \description{
 Get cents between vector and reference note
 }

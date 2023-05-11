@@ -9,9 +9,6 @@ remove_last_char_of_string(string)
 \arguments{
 \item{string}{}
 }
-\value{
-
-}
 \description{
 Remove the last character of a string
 }

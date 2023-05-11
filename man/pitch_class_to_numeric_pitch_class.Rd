@@ -9,9 +9,6 @@ pitch_class_to_numeric_pitch_class(pitch_class)
 \arguments{
 \item{pitch_class}{}
 }
-\value{
-
-}
 \description{
 Convert pitch classes to numeric pitch classes
 }

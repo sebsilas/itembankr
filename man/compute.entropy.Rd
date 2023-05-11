@@ -9,9 +9,6 @@ compute.entropy(integer.vector, alphabet.size = 2)
 \arguments{
 \item{alphabet.size}{}
 }
-\value{
-
-}
 \description{
 Compute entropy
 }

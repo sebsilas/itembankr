@@ -9,9 +9,6 @@ midi_to_pitch_class(midi_note)
 \arguments{
 \item{midi_note}{}
 }
-\value{
-
-}
 \description{
 Convert MIDI note to pitch class
 }

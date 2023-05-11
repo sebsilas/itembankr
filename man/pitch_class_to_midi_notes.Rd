@@ -9,9 +9,6 @@ pitch_class_to_midi_notes(pitch_class)
 \arguments{
 \item{pitch_class}{}
 }
-\value{
-
-}
 \description{
 Return MIDI note(s) corresponding to a given pitch class
 }

@@ -11,9 +11,6 @@ classify_duration(dur_vec, ref_duration = 0.5)
 
 \item{ref_duration}{}
 }
-\value{
-
-}
 \description{
 Classify ioi class (see Frieler.. )
 }

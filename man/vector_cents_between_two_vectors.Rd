@@ -9,9 +9,6 @@ vector_cents_between_two_vectors(vectora, vectorb)
 \arguments{
 \item{vectorb}{}
 }
-\value{
-
-}
 \description{
 Get the cents between two vectors
 }

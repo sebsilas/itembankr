@@ -6,9 +6,6 @@
 \usage{
 list_official_item_banks(default = "Berkowitz")
 }
-\value{
-
-}
 \description{
 List official itembankr item banks for use
 }

@@ -9,9 +9,6 @@ get_all_ngrams(x, N = 3)
 \arguments{
 \item{N}{}
 }
-\value{
-
-}
 \description{
 Get all ngrams from a given vector
 }

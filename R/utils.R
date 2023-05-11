@@ -10,7 +10,11 @@
 #'
 #' @examples
 scale_durations_to_have_min_abs_value_of_x_seconds <- function(df, x = 0.25) {
-  df %>%
+
+  if(is.na(x)) {
+    return(df)
+  } else {
+  df <- df %>%
     dplyr::rowwise() %>%
     dplyr::mutate(durations_v = list( str_mel_to_vector(durations) ),
            min_duration = min( unlist(durations_v) , na.rm = TRUE),
@@ -21,6 +25,8 @@ scale_durations_to_have_min_abs_value_of_x_seconds <- function(df, x = 0.25) {
            durations = paste0(unlist(durations_v), collapse = ",") ) %>% # corrected
     dplyr::ungroup() %>%
     dplyr::select(-c(durations_v, min_duration, min_dur_scale_factor))
+  }
+  df
 }
 
 
@@ -363,15 +369,9 @@ pitch_class_to_numeric_pitch_class <- function(pitch_class) {
 #' @export
 #'
 #' @examples
-pitch_class_to_midi_notes <- function(pitch_class) {
-  if(length(pitch_class) == 1) {
+pitch_class_to_midi_notes <- Vectorize(function(pitch_class) {
     pitch.class.to.midi.list[[pitch_class]]
-  } else {
-    lapply(pitch_class, function(x) {
-      pitch.class.to.midi.list[[x]]
-    })
-  }
-}
+})
 
 
 #' Grab the last character of a string

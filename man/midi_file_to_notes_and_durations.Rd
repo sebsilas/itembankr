@@ -13,9 +13,6 @@ midi_file_to_notes_and_durations(
 \arguments{
 \item{produce_extra_melodic_features}{}
 }
-\value{
-
-}
 \description{
 Get notes and durations from a MIDI file
 }

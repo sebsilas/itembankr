@@ -6,9 +6,6 @@
 \usage{
 list_item_bank_types()
 }
-\value{
-
-}
 \description{
 List item bank types
 }

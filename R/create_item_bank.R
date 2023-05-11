@@ -46,7 +46,7 @@ create_item_bank <- function(name = "",
     is.logical(remove_redundancy),
     is.scalar.logical(remove_melodies_with_only_repeated_notes),
     is.scalar.logical(remove_melodies_with_any_repeated_notes),
-    is.scalar.numeric(scale_durations_to_have_min_abs_value_of_x_seconds),
+    is.scalar.numeric(scale_durations_to_have_min_abs_value_of_x_seconds) | is.na(scale_durations_to_have_min_abs_value_of_x_seconds),
     is.null.or(slice_head, is.scalar.numeric)
   )
 

@@ -27,8 +27,8 @@ Imports:
     tibble,
     stats,
     ppm (>= 0.3.0)
-RoxygenNote: 7.1.1
-Remotes:  
+RoxygenNote: 7.2.3
+Remotes: 
     pmcharrison/hrep,
     pmcharrison/ppm
 Suggests: 

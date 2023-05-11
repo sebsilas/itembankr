@@ -9,9 +9,6 @@ is_item_bank(x)
 \arguments{
 \item{x}{}
 }
-\value{
-
-}
 \description{
 Check item bank class
 }
