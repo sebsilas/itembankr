@@ -67,11 +67,8 @@ split_item_bank_into_ngrams <- function(item_bank, M = NULL, get_ngrukkon = TRUE
 
 compute_ngram_similarity <- function(ngrams, get_ngrukkon = TRUE) {
 
-  print('compute_ngram_similarity')
-  print(ngrams)
-
   if(get_ngrukkon) {
-    print('computing similarity')
+    logging::loginfo('Computing Similarity. nrows = %s', nrow(ngrams))
     ngrams <- ngrams %>%
       dplyr::filter(N > 3 & length(itembankr::str_mel_to_vector(parent_abs_melody)),
                     N > 3 & length(itembankr::str_mel_to_vector(abs_melody))) %>%
@@ -79,7 +76,7 @@ compute_ngram_similarity <- function(ngrams, get_ngrukkon = TRUE) {
       dplyr::mutate(ngrukkon = musicassessr::ngrukkon(itembankr::str_mel_to_vector(parent_abs_melody),
                                                       itembankr::str_mel_to_vector(abs_melody))) %>%
       dplyr::ungroup()
-    print('similarity complete')
+    logging::loginfo('Similarity computation complete.')
 
   }
 
@@ -121,12 +118,11 @@ get_ngrams_multiple_sizes <- function(abs_melody, M) {
 
 clip_durations <- function(df) {
 
-  print(names(df))
-
   purrr::pmap_dfr(df, function(start, N, value, parent_durations, parent_abs_melody,
                                parent_melody, parent_N, midi_file, musicxml_file, id) {
 
-    print(paste0('clipping durations: ', id, '/', nrow(df)))
+    logging::loginfo('Clipping durations %s/%s', id, nrow(df))
+
 
     start <- as.numeric(start)
     end <- start + as.numeric(N)-1

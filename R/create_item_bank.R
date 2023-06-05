@@ -67,6 +67,16 @@ create_item_bank <- function(name = "",
     file_item_bank <- NA
   }
 
+  # Tidy up
+  if(!is_na_scalar(file_item_bank)) {
+    file_item_bank <- janitor::remove_empty(file_item_bank, which = "cols")
+  }
+
+  # Save
+  save_file_item_bank(file_item_bank, name)
+
+
+
   # Create item bank with features
   if(input %in% c("files", "item_df") & any(output %in% c("item", "all", "combined")))  {
     phrase_item_bank <- NA # Might get overwritten later
@@ -88,6 +98,23 @@ create_item_bank <- function(name = "",
     item_item_bank <- NA
   }
 
+  # Tidy up
+  if(!is_na_scalar(item_item_bank)) {
+    item_item_bank <- janitor::remove_empty(item_item_bank, which = "cols")
+  }
+  # Remove redundancy
+  if(remove_redundancy) {
+    # Get orig lengths
+    item_item_bank_orig_length <- if(is_na_scalar(item_item_bank)) NA else nrow(item_item_bank)
+    item_item_bank <- if(is_na_scalar(item_item_bank)) NA else item_item_bank %>% dplyr::distinct(melody, durations, .keep_all = TRUE)
+  } else {
+    item_item_bank_orig_length <- NA
+  }
+  # Save
+  save_item_item_bank(item_item_bank, name, item_item_bank_orig_length)
+
+
+
   # Create phrase item bank (with features) i.e., chop up items based on segmentation
   if(input %in% c("files", "item_df", "phrase_df") & any(output %in% c("phrase", "all", "combined")))  {
 
@@ -107,6 +134,24 @@ create_item_bank <- function(name = "",
 
   }
 
+  # Tidy up
+  if(!is_na_scalar(phrase_item_bank)) {
+    phrase_item_bank <- janitor::remove_empty(phrase_item_bank, which = "cols")
+  }
+  # Remove redundancy
+  if(remove_redundancy) {
+    # Get orig lengths
+    phrase_item_bank_orig_length <- if(is_na_scalar(phrase_item_bank)) NA else nrow(phrase_item_bank)
+    phrase_item_bank <- if(is_na_scalar(phrase_item_bank)) NA else phrase_item_bank %>% dplyr::distinct(melody, durations, .keep_all = TRUE)
+  } else {
+    phrase_item_bank_orig_length <- NA
+  }
+  # Save
+  save_phrase_item_bank(phrase_item_bank, name, phrase_item_bank_orig_length)
+
+
+
+
   # Create ngram item bank (with features) i.e., chop up items into N-grams
   if(any(output %in% c("ngram", "all", "combined"))) {
     ngram_item_bank <- phrase_item_bank %>%
@@ -117,6 +162,21 @@ create_item_bank <- function(name = "",
   } else {
     ngram_item_bank <- NA
   }
+  # Tidy up
+  if(!is_na_scalar(ngram_item_bank)) {
+    ngram_item_bank <- janitor::remove_empty(ngram_item_bank, which = "cols")
+  }
+  # Remove redundancy
+  if(remove_redundancy) {
+    # Get orig lengths
+    ngram_item_bank_orig_length <- if(is_na_scalar(ngram_item_bank)) NA else nrow(ngram_item_bank)
+    ngram_item_bank <- if(is_na_scalar(ngram_item_bank)) NA else ngram_item_bank %>% dplyr::distinct(melody, durations, .keep_all = TRUE)
+  } else {
+    ngram_item_bank_orig_length <- NA
+  }
+  # Save
+  save_ngram_item_bank(ngram_item_bank, name, ngram_item_bank_orig_length)
+
 
   # Create combined item bank (i.e., put everything together)
   if(any(c("all", "combined") %in% output)) {
@@ -145,87 +205,20 @@ create_item_bank <- function(name = "",
 
 
   # Tidy up
-  if(!is_na_scalar(file_item_bank)) {
-    file_item_bank <- janitor::remove_empty(file_item_bank, which = "cols")
-  }
-  if(!is_na_scalar(item_item_bank)) {
-    item_item_bank <- janitor::remove_empty(item_item_bank, which = "cols")
-  }
-
-  if(!is_na_scalar(phrase_item_bank)) {
-    phrase_item_bank <- janitor::remove_empty(phrase_item_bank, which = "cols")
-  }
-
-  if(!is_na_scalar(ngram_item_bank)) {
-    ngram_item_bank <- janitor::remove_empty(ngram_item_bank, which = "cols")
-  }
-
   if(!is_na_scalar(combined_item_bank)) {
     combined_item_bank <- janitor::remove_empty(combined_item_bank, which = "cols")
   }
-
   # Remove redundancy
   if(remove_redundancy) {
     # Get orig lengths
-    item_item_bank_orig_length <- if(is_na_scalar(item_item_bank)) NA else nrow(item_item_bank)
-    phrase_item_bank_orig_length <- if(is_na_scalar(phrase_item_bank)) NA else nrow(phrase_item_bank)
-    ngram_item_bank_orig_length <- if(is_na_scalar(ngram_item_bank)) NA else nrow(ngram_item_bank)
     combined_item_bank_orig_length <- if(is_na_scalar(combined_item_bank)) NA else nrow(combined_item_bank)
-
-
-    item_item_bank <- if(is_na_scalar(item_item_bank)) NA else item_item_bank %>% dplyr::distinct(melody, durations, .keep_all = TRUE)
-    phrase_item_bank <- if(is_na_scalar(phrase_item_bank)) NA else phrase_item_bank %>% dplyr::distinct(melody, durations, .keep_all = TRUE)
-    ngram_item_bank <- if(is_na_scalar(ngram_item_bank)) NA else ngram_item_bank %>% dplyr::distinct(melody, durations, .keep_all = TRUE)
     combined_item_bank <- if(is_na_scalar(combined_item_bank)) NA else combined_item_bank %>% dplyr::distinct(melody, durations, .keep_all = TRUE)
 
   } else {
-    item_item_bank_orig_length <- NA
-    phrase_item_bank_orig_length <- NA
-    ngram_item_bank_orig_length <- NA
     combined_item_bank_orig_length <- NA
   }
-
-
-
-  if(!is_na_scalar(file_item_bank)) {
-    attr(file_item_bank, "item_bank_name") <- name
-    attr(file_item_bank, "item_bank_type") <- "file"
-    file_item_bank <- set_item_bank_class(file_item_bank, extra = "file_item_bank")
-    save(file_item_bank, file = paste0(name, "_file.rda"))
-  }
-
-  if(!is_na_scalar(item_item_bank)) {
-    attr(item_item_bank, "item_bank_name") <- name
-    attr(item_item_bank, "item_bank_type") <- "item"
-    item_item_bank <- set_item_bank_class(item_item_bank, extra = "item_item_bank")
-    attr(item_item_bank, "proportion_non_redundant") <- if(is_na_scalar(item_item_bank)) NA else round(nrow(item_item_bank)/item_item_bank_orig_length, 2)
-    save(item_item_bank, file = paste0(name, "_item.rda"))
-  }
-
-  if(!is_na_scalar(ngram_item_bank)) {
-    attr(ngram_item_bank, "item_bank_name") <- name
-    attr(ngram_item_bank, "item_bank_type") <- "ngram"
-    ngram_item_bank <- set_item_bank_class(ngram_item_bank, extra = "ngram_item_bank")
-    attr(ngram_item_bank, "proportion_non_redundant") <- if(is_na_scalar(ngram_item_bank)) NA else round(nrow(ngram_item_bank)/ngram_item_bank_orig_length, 2)
-    save(ngram_item_bank, file = paste0(name, '_ngram.rda'))
-  }
-
-  if(!is_na_scalar(phrase_item_bank)) {
-    attr(phrase_item_bank, "item_bank_name") <- name
-    attr(phrase_item_bank, "item_bank_type") <- "phrase"
-    phrase_item_bank <- set_item_bank_class(phrase_item_bank, extra = "phrase_item_bank")
-    attr(phrase_item_bank, "proportion_non_redundant") <- if(is_na_scalar(phrase_item_bank)) NA else round(nrow(phrase_item_bank)/phrase_item_bank_orig_length, 2)
-    save(phrase_item_bank, file = paste0(name, '_phrase.rda'))
-  }
-
-  if(!is_na_scalar(combined_item_bank)) {
-    attr(combined_item_bank, "item_bank_name") <- name
-    attr(combined_item_bank, "item_bank_type") <- "combined"
-    combined_item_bank <- set_item_bank_class(combined_item_bank, extra = "combined_item_bank")
-    attr(combined_item_bank, "proportion_non_redundant") <- if(is_na_scalar(combined_item_bank)) NA else round(nrow(combined_item_bank)/combined_item_bank_orig_length, 2)
-    save(combined_item_bank, file = paste0(name, '_combined.rda'))
-  }
-
+  # Save
+  save_combined_item_bank(combined_item_bank, name, combined_item_bank_orig_length)
 
   if(launch_app & ! is_na_scalar(combined_item_bank)) {
     itembankexplorer::item_bank_explorer(combined_item_bank)
@@ -253,4 +246,54 @@ create_item_bank_function <- function() {
 
 # Example:
 # item_bank <- create_item_bank("Test", input = "phrase_df", output = "all", input_df = phrases_df)
+
+
+save_file_item_bank <- function(file_item_bank, name) {
+  if(!is_na_scalar(file_item_bank)) {
+    attr(file_item_bank, "item_bank_name") <- name
+    attr(file_item_bank, "item_bank_type") <- "file"
+    file_item_bank <- set_item_bank_class(file_item_bank, extra = "file_item_bank")
+    save(file_item_bank, file = paste0(name, "_file.rda"))
+  }
+}
+
+save_item_item_bank <- function(item_item_bank, name, item_item_bank_orig_length) {
+  if(!is_na_scalar(item_item_bank)) {
+    attr(item_item_bank, "item_bank_name") <- name
+    attr(item_item_bank, "item_bank_type") <- "item"
+    item_item_bank <- set_item_bank_class(item_item_bank, extra = "item_item_bank")
+    attr(item_item_bank, "proportion_non_redundant") <- if(is_na_scalar(item_item_bank)) NA else round(nrow(item_item_bank)/item_item_bank_orig_length, 2)
+    save(item_item_bank, file = paste0(name, "_item.rda"))
+  }
+}
+
+save_ngram_item_bank <- function(ngram_item_bank, name, ngram_item_bank_orig_length) {
+  if(!is_na_scalar(ngram_item_bank)) {
+    attr(ngram_item_bank, "item_bank_name") <- name
+    attr(ngram_item_bank, "item_bank_type") <- "ngram"
+    ngram_item_bank <- set_item_bank_class(ngram_item_bank, extra = "ngram_item_bank")
+    attr(ngram_item_bank, "proportion_non_redundant") <- if(is_na_scalar(ngram_item_bank)) NA else round(nrow(ngram_item_bank)/ngram_item_bank_orig_length, 2)
+    save(ngram_item_bank, file = paste0(name, '_ngram.rda'))
+  }
+}
+
+save_phrase_item_bank <- function(phrase_item_bank, name, phrase_item_bank_orig_length) {
+  if(!is_na_scalar(phrase_item_bank)) {
+    attr(phrase_item_bank, "item_bank_name") <- name
+    attr(phrase_item_bank, "item_bank_type") <- "phrase"
+    phrase_item_bank <- set_item_bank_class(phrase_item_bank, extra = "phrase_item_bank")
+    attr(phrase_item_bank, "proportion_non_redundant") <- if(is_na_scalar(phrase_item_bank)) NA else round(nrow(phrase_item_bank)/phrase_item_bank_orig_length, 2)
+    save(phrase_item_bank, file = paste0(name, '_phrase.rda'))
+  }
+}
+
+save_combined_item_bank <- function(combined_item_bank, name, combined_item_bank_orig_length) {
+  if(!is_na_scalar(combined_item_bank)) {
+    attr(combined_item_bank, "item_bank_name") <- name
+    attr(combined_item_bank, "item_bank_type") <- "combined"
+    combined_item_bank <- set_item_bank_class(combined_item_bank, extra = "combined_item_bank")
+    attr(combined_item_bank, "proportion_non_redundant") <- if(is_na_scalar(combined_item_bank)) NA else round(nrow(combined_item_bank)/combined_item_bank_orig_length, 2)
+    save(combined_item_bank, file = paste0(name, '_combined.rda'))
+  }
+}
 
