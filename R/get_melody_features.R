@@ -16,7 +16,8 @@ get_melody_features <- function(df, mel_sep = ",", durationMeasures = TRUE, abs_
   }
 
   if(abs_melody_name %in% names(df)) {
-    df <- df %>% dplyr::filter(!is.na( !!abs_melody_name ))
+    df <- df %>%
+      dplyr::filter(!is.na( !!abs_melody_name ))
   }
 
   abs_melody_name <- as.name(abs_melody_name)
@@ -30,51 +31,19 @@ get_melody_features <- function(df, mel_sep = ",", durationMeasures = TRUE, abs_
       i.entropy = compute.entropy(diff(str_mel_to_vector(!! abs_melody_name)), phr.length.limits[2]-1),
       # calculate melody spans, to make sure melodies can be presented within a user's range
       span = compute_span(str_mel_to_vector(!! abs_melody_name)),
-      mean_information_content = get_mean_information_content(str_mel_to_vector(!! abs_melody_name))
+      mean_information_content = get_mean_information_content(str_mel_to_vector(!! abs_melody_name)),
+      # tonality
+      tonality = list( get_tonality(!! abs_melody_name, sep = mel_sep) ),
+      # step contour
+      step_contour = list( get_step_contour(!! abs_melody_name, mel_sep = mel_sep, relative = FALSE) ),
+      # KF features
+      kf_features = list( dplyr::select(int_ngram_difficulty(int_to_pattern(str_mel_to_vector(melody))), -value) ) ,
+      # duration measures
+      duration_measures = get_duration_measures(durations),
+      mean_duration = mean(itembankr::str_mel_to_vector(durations))
     ) %>%
-    dplyr::ungroup()
-
-  # tonality
-  tonality <- df %>%
-    dplyr::pull(!! abs_melody_name) %>%
-    purrr::map_dfr(get_tonality, mel_sep)
-
-  # step contour
-  step_contour_df <- df %>%
-    dplyr::pull(!! abs_melody_name) %>%
-    purrr::map_dfr(get_step_contour, mel_sep = mel_sep, relative = FALSE) %>%
-    dplyr::select(step.cont.glob.var, step.cont.glob.dir, step.cont.loc.var)
-
-
-  # difficulty measures from Klaus
-  difficulty_measures <- df %>%
-    dplyr::pull(!! abs_melody_name) %>%
-    purrr::map_dfr(function(x) int_ngram_difficulty(int_to_pattern(diff(str_mel_to_vector(x))))) %>%
-    dplyr::select(-value)
-
-
-  df <- df %>% cbind(tonality, step_contour_df, difficulty_measures)
-
-  if(durationMeasures) {
-    # duration measures
-    duration_df <-  df %>%
-      dplyr::pull(durations) %>%
-      purrr::map_dfr(get_duration_measures)
-
-    names(duration_df) <- c("d.entropy", "d.eq.trans")
-
-    df <- df %>% cbind(duration_df)
-
-    if(!is_null_scalar(df$durations) & !is_na_scalar(df$durations)) {
-      df <- df %>%
-        dplyr::rowwise() %>%
-        dplyr::mutate(mean_duration = mean(itembankr::str_mel_to_vector(durations))) %>%
-        dplyr::ungroup()
-    } else {
-      df$mean_duration <- NA
-    }
-
-  }
+    dplyr::ungroup() %>%
+    tidyr::unnest(c(tonality, step_contour, kf_features, duration_measures))
 
 
   numeric_vars <- c("step.cont.glob.dir", "step.cont.glob.var",
@@ -120,18 +89,25 @@ count_freqs <- function(item_bank) {
 
 get_tonality <- function(abs_melody, sep = ",") {
 
-  # wrap the FANTASTIC functions and add in some default durations if need be
-  if (!is_na_scalar(abs_melody)) {
-    pitch <- str_mel_to_vector(abs_melody, sep)
-    len <- length(pitch)
-    dur16 <- rep(.25, length(pitch))
-    tonality.vector <- compute.tonality.vector(pitch,dur16,make.tonal.weights(maj.vector,min.vector))
-    ton.results <- compute.tonal.features(tonality.vector)
-  }
+  tryCatch({
+    # wrap the FANTASTIC functions and add in some default durations if need be
+    if (!is_na_scalar(abs_melody)) {
+      pitch <- str_mel_to_vector(abs_melody, sep)
+      len <- length(pitch)
+      dur16 <- rep(.25, length(pitch))
+      tonality.vector <- compute.tonality.vector(pitch,dur16,make.tonal.weights(maj.vector,min.vector))
+      ton.results <- compute.tonal.features(tonality.vector)
+    }
 
-  else {
-    ton.results <- as.data.frame(matrix(c(NA, NA, NA, NA), nrow = 1, ncol = 4))
-  }
+    else {
+      ton.results <- tibble::tibble(tonalness = NA, tonal.clarity = NA, tonal.spike = NA, mode = NA)
+    }
+    ton.results
+  }, error = function(err) {
+    logging::logerror(err)
+    ton.results <- tibble::tibble(tonalness = NA, tonal.clarity = NA, tonal.spike = NA, mode = NA)
+    ton.results
+  })
 
 }
 
@@ -172,6 +148,8 @@ get_duration_measures <- function(durations) {
   else {
     dur.results <- as.data.frame(matrix(c(NA, NA), nrow = 1, ncol = 2))
   }
+  names(dur.results) <- c("d.entropy", "d.eq.trans")
+  dur.results
 }
 
 # Frieler difficulty measures
@@ -226,17 +204,16 @@ get_mean_information_content <- function(seq) {
 }
 
 
-# get_mean_information_content(60:69) # No repetition
-#
-# # 7.630521
-#
-# get_mean_information_content(c(60, 60, 60, 61, 61)) # Bit of repetition
-#
-# # 3.875074
-#
-# get_mean_information_content(rep(60, 10)) # All repetition
-#
-# # 1.003912
+# item_bank <- create_item_bank(name = "Test",
+#                               input = "phrase_df",
+#                               output = "all",
+#                               input_df = tibble::tibble(abs_melody = c("61,62,63,64,65,66",
+#                                                                        "72, 73, 75, 78"),
+#                                                         durations = c("1,2,3,4,5,6",
+#                                                                       "1, 1, 1, 1")))
+
+
+# load('Test_combined.rda')
 
 
 
