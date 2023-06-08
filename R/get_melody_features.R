@@ -204,16 +204,16 @@ get_mean_information_content <- function(seq) {
 }
 
 
-create_item_bank(name = "Test",
-                input = "phrase_df",
-                output = "all",
-                input_df = tibble::tibble(abs_melody = c("61,62,63,64,65,66",
-                                                         "72, 73, 75, 78"),
-                                          durations = c("1,2,3,4,5,6",
-                                                        "1, 1, 1, 1")))
-load('Test_combined.rda')
-load('Test_ngram.rda')
-load('Test_phrase.rda')
+# create_item_bank(name = "Test",
+#                 input = "phrase_df",
+#                 output = "all",
+#                 input_df = tibble::tibble(abs_melody = c("61,62,63,64,65,66",
+#                                                          "72, 73, 75, 78"),
+#                                           durations = c("1,2,3,4,5,6",
+#                                                         "1, 1, 1, 1")))
+# load('Test_combined.rda')
+# load('Test_ngram.rda')
+# load('Test_phrase.rda')
 
 
 

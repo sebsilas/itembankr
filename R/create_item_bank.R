@@ -1,5 +1,6 @@
 
-
+# TODO: Put remove_redundancy before melodic feature computation and similarity stuff, to optimise things
+# TODO: Add more/better logging. In remove_redundancy, markers of what steps the script is in, etc.
 
 #' Convert corpus to item bank
 #'
@@ -15,6 +16,7 @@
 #' @param remove_melodies_with_any_repeated_notes Remove any melodies which contain any consecutive repeated notes.
 #' @param scale_durations_to_have_min_abs_value_of_x_seconds Scale melody durations to have a minimum of x seconds.
 #' @param slice_head NULL by default. Can be an integer to slice up to a certain number of items - useful for testing.
+#' @param distinct_based_on_melody_only If TRUE, when removing redundancy, check for uniqueness only based on the melody column. Otherwise check based on melody and durations. Default is TRUE.
 #'
 #' @return
 #' @export
@@ -31,7 +33,8 @@ create_item_bank <- function(name = "",
                             remove_melodies_with_only_repeated_notes = TRUE,
                             remove_melodies_with_any_repeated_notes = FALSE,
                             scale_durations_to_have_min_abs_value_of_x_seconds = 0.25,
-                            slice_head = NULL) {
+                            slice_head = NULL,
+                            distinct_based_on_melody_only = TRUE) {
 
   stopifnot(
     assertthat::is.string(name),
@@ -47,7 +50,8 @@ create_item_bank <- function(name = "",
     is.scalar.logical(remove_melodies_with_only_repeated_notes),
     is.scalar.logical(remove_melodies_with_any_repeated_notes),
     is.scalar.numeric(scale_durations_to_have_min_abs_value_of_x_seconds) | is.na(scale_durations_to_have_min_abs_value_of_x_seconds),
-    is.null.or(slice_head, is.scalar.numeric)
+    is.null.or(slice_head, is.scalar.numeric),
+    is.scalar.logical(distinct_based_on_melody_only)
   )
 
   input_check(midi_file_dir, musicxml_file_dir, input_df)
@@ -73,7 +77,7 @@ create_item_bank <- function(name = "",
   }
 
   # Save
-  save_file_item_bank(file_item_bank, name)
+  save_item_bank(file_item_bank, name, type = "file")
 
 
 
@@ -103,17 +107,9 @@ create_item_bank <- function(name = "",
     item_item_bank <- janitor::remove_empty(item_item_bank, which = "cols")
   }
   # Remove redundancy
-  if(remove_redundancy) {
-    # Get orig lengths
-    item_item_bank_orig_length <- if(is_na_scalar(item_item_bank)) NA else nrow(item_item_bank)
-    item_item_bank <- if(is_na_scalar(item_item_bank)) NA else item_item_bank %>% dplyr::distinct(melody, durations, .keep_all = TRUE)
-  } else {
-    item_item_bank_orig_length <- NA
-  }
+  item_item_bank <-  remove_redundancy(remove_redundancy, item_item_bank, distinct_based_on_melody_only)
   # Save
-  save_item_item_bank(item_item_bank, name, item_item_bank_orig_length)
-
-
+  save_item_bank(item_item_bank, name, type = "item")
 
   # Create phrase item bank (with features) i.e., chop up items based on segmentation
   if(input %in% c("files", "item_df", "phrase_df") & any(output %in% c("phrase", "all", "combined")))  {
@@ -139,17 +135,9 @@ create_item_bank <- function(name = "",
     phrase_item_bank <- janitor::remove_empty(phrase_item_bank, which = "cols")
   }
   # Remove redundancy
-  if(remove_redundancy) {
-    # Get orig lengths
-    phrase_item_bank_orig_length <- if(is_na_scalar(phrase_item_bank)) NA else nrow(phrase_item_bank)
-    phrase_item_bank <- if(is_na_scalar(phrase_item_bank)) NA else phrase_item_bank %>% dplyr::distinct(melody, durations, .keep_all = TRUE)
-  } else {
-    phrase_item_bank_orig_length <- NA
-  }
+  phrase_item_bank <-  remove_redundancy(remove_redundancy, phrase_item_bank, distinct_based_on_melody_only)
   # Save
-  save_phrase_item_bank(phrase_item_bank, name, phrase_item_bank_orig_length)
-
-
+  save_item_bank(phrase_item_bank, name, type = "phrase")
 
 
   # Create ngram item bank (with features) i.e., chop up items into N-grams
@@ -167,16 +155,9 @@ create_item_bank <- function(name = "",
     ngram_item_bank <- janitor::remove_empty(ngram_item_bank, which = "cols")
   }
   # Remove redundancy
-  if(remove_redundancy) {
-    # Get orig lengths
-    ngram_item_bank_orig_length <- if(is_na_scalar(ngram_item_bank)) NA else nrow(ngram_item_bank)
-    ngram_item_bank <- if(is_na_scalar(ngram_item_bank)) NA else ngram_item_bank %>% dplyr::distinct(melody, durations, .keep_all = TRUE)
-  } else {
-    ngram_item_bank_orig_length <- NA
-  }
+  ngram_item_bank <-  remove_redundancy(remove_redundancy, ngram_item_bank, distinct_based_on_melody_only)
   # Save
-  save_ngram_item_bank(ngram_item_bank, name, ngram_item_bank_orig_length)
-
+  save_item_bank(ngram_item_bank, name, type = "ngram")
 
   # Create combined item bank (i.e., put everything together)
   if(any(c("all", "combined") %in% output)) {
@@ -202,23 +183,15 @@ create_item_bank <- function(name = "",
   } else {
     combined_item_bank <- NA
   }
-
-
   # Tidy up
   if(!is_na_scalar(combined_item_bank)) {
     combined_item_bank <- janitor::remove_empty(combined_item_bank, which = "cols")
   }
-  # Remove redundancy
-  if(remove_redundancy) {
-    # Get orig lengths
-    combined_item_bank_orig_length <- if(is_na_scalar(combined_item_bank)) NA else nrow(combined_item_bank)
-    combined_item_bank <- if(is_na_scalar(combined_item_bank)) NA else combined_item_bank %>% dplyr::distinct(melody, durations, .keep_all = TRUE)
 
-  } else {
-    combined_item_bank_orig_length <- NA
-  }
+  # Remove redundancy
+  combined_item_bank <-  remove_redundancy(remove_redundancy, combined_item_bank, distinct_based_on_melody_only)
   # Save
-  save_combined_item_bank(combined_item_bank, name, combined_item_bank_orig_length)
+  save_item_bank(combined_item_bank, name, type = "combined")
 
   if(launch_app & ! is_na_scalar(combined_item_bank)) {
     itembankexplorer::item_bank_explorer(combined_item_bank)
@@ -242,58 +215,63 @@ create_item_bank_function <- function() {
   }
 }
 
+
+#' Save an item bank
+#'
+#' @param item_bank
+#' @param name
+#' @param type
+#'
+#' @return
+#' @export
+#'
+#' @examples
+save_item_bank <- function(item_bank, name, type = c("item", "phrase", "ngram", "combined")) {
+  orig_length <- attributes(item_bank)$item_bank_orig_length
+  if(!is_na_scalar(item_bank)) {
+    attr(item_bank, "item_bank_name") <- name
+    attr(item_bank, "item_bank_type") <- type
+    attr(item_bank, "proportion_non_redundant") <- if(is_na_scalar(item_bank)) NA else round(nrow(item_bank)/orig_length, 2)
+    item_bank <- set_item_bank_class(item_bank, extra = paste0(type, "_item_bank"))
+    save(item_bank, file = paste0(name, '_', type, '.rda'), compress = "xz")
+  }
+}
+
+
+#' Remove redundancy from an item bank
+#'
+#' @param remove_redundancy
+#' @param item_bank
+#' @param distinct_based_on_melody_only
+#'
+#' @return
+#' @export
+#'
+#' @examples
+remove_redundancy <- function(remove_redundancy, item_bank, distinct_based_on_melody_only = TRUE) {
+  if(remove_redundancy) {
+    # Get orig lengths
+    item_bank_orig_length <- if(is_na_scalar(item_bank)) NA else nrow(item_bank)
+
+    item_bank <- if(is_na_scalar(item_bank)) NA else if(distinct_based_on_melody_only) {
+        item_bank %>% dplyr::distinct(melody, .keep_all = TRUE)
+      } else {
+        item_bank %>% dplyr::distinct(melody, durations, .keep_all = TRUE)
+      }
+
+    attr(item_bank, "item_bank_orig_length") <- item_bank_orig_length
+
+    return(item_bank)
+
+  } else {
+    return(item_bank)
+
+  }
+}
+
+
 # TODO: Documentation
 
 # Example:
 # item_bank <- create_item_bank("Test", input = "phrase_df", output = "all", input_df = phrases_df)
-
-
-save_file_item_bank <- function(file_item_bank, name) {
-  if(!is_na_scalar(file_item_bank)) {
-    attr(file_item_bank, "item_bank_name") <- name
-    attr(file_item_bank, "item_bank_type") <- "file"
-    file_item_bank <- set_item_bank_class(file_item_bank, extra = "file_item_bank")
-    save(file_item_bank, file = paste0(name, "_file.rda"))
-  }
-}
-
-save_item_item_bank <- function(item_item_bank, name, item_item_bank_orig_length) {
-  if(!is_na_scalar(item_item_bank)) {
-    attr(item_item_bank, "item_bank_name") <- name
-    attr(item_item_bank, "item_bank_type") <- "item"
-    item_item_bank <- set_item_bank_class(item_item_bank, extra = "item_item_bank")
-    attr(item_item_bank, "proportion_non_redundant") <- if(is_na_scalar(item_item_bank)) NA else round(nrow(item_item_bank)/item_item_bank_orig_length, 2)
-    save(item_item_bank, file = paste0(name, "_item.rda"))
-  }
-}
-
-save_ngram_item_bank <- function(ngram_item_bank, name, ngram_item_bank_orig_length) {
-  if(!is_na_scalar(ngram_item_bank)) {
-    attr(ngram_item_bank, "item_bank_name") <- name
-    attr(ngram_item_bank, "item_bank_type") <- "ngram"
-    ngram_item_bank <- set_item_bank_class(ngram_item_bank, extra = "ngram_item_bank")
-    attr(ngram_item_bank, "proportion_non_redundant") <- if(is_na_scalar(ngram_item_bank)) NA else round(nrow(ngram_item_bank)/ngram_item_bank_orig_length, 2)
-    save(ngram_item_bank, file = paste0(name, '_ngram.rda'))
-  }
-}
-
-save_phrase_item_bank <- function(phrase_item_bank, name, phrase_item_bank_orig_length) {
-  if(!is_na_scalar(phrase_item_bank)) {
-    attr(phrase_item_bank, "item_bank_name") <- name
-    attr(phrase_item_bank, "item_bank_type") <- "phrase"
-    phrase_item_bank <- set_item_bank_class(phrase_item_bank, extra = "phrase_item_bank")
-    attr(phrase_item_bank, "proportion_non_redundant") <- if(is_na_scalar(phrase_item_bank)) NA else round(nrow(phrase_item_bank)/phrase_item_bank_orig_length, 2)
-    save(phrase_item_bank, file = paste0(name, '_phrase.rda'))
-  }
-}
-
-save_combined_item_bank <- function(combined_item_bank, name, combined_item_bank_orig_length) {
-  if(!is_na_scalar(combined_item_bank)) {
-    attr(combined_item_bank, "item_bank_name") <- name
-    attr(combined_item_bank, "item_bank_type") <- "combined"
-    combined_item_bank <- set_item_bank_class(combined_item_bank, extra = "combined_item_bank")
-    attr(combined_item_bank, "proportion_non_redundant") <- if(is_na_scalar(combined_item_bank)) NA else round(nrow(combined_item_bank)/combined_item_bank_orig_length, 2)
-    save(combined_item_bank, file = paste0(name, '_combined.rda'))
-  }
-}
 
