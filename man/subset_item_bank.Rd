@@ -13,11 +13,12 @@ subset_item_bank(
   span_max = max(item_bank$span),
   tonality = NULL,
   min_mean_duration = 0,
-  return_as_item_bank_class = FALSE
+  return_as_item_bank_class = FALSE,
+  retain_classes = FALSE
 )
 }
 \arguments{
-\item{return_as_item_bank_class}{}
+\item{retain_classes}{Should the item bank keep any extra classes it had?}
 }
 \description{
 Subset Item Bank

@@ -216,4 +216,7 @@ get_mean_information_content <- function(seq) {
 # load('Test_phrase.rda')
 
 
-
+# t <- itembankr::str_mel_to_vector("61,62,63,64,65,66,68,67") %>% diff()
+# l <- length(t)
+# r <- rle(sign(t))
+# mean_run_length <- 1 - mean(r$lengths)/l

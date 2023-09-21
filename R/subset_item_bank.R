@@ -8,6 +8,7 @@
 #' @param span_max
 #' @param tonality
 #' @param return_as_item_bank_class
+#' @param retain_classes Should the item bank keep any extra classes it had?
 #'
 #' @return
 #' @export
@@ -19,7 +20,8 @@ subset_item_bank <- function(item_bank,
                               span_max = max(item_bank$span),
                               tonality = NULL,
                               min_mean_duration = 0,
-                              return_as_item_bank_class = FALSE) {
+                              return_as_item_bank_class = FALSE,
+                              retain_classes = FALSE) {
 
   stopifnot(tibble::is_tibble(item_bank),
            is.null.or(item_length, function(x) length(x) %in% 1:2),
@@ -28,7 +30,12 @@ subset_item_bank <- function(item_bank,
             is.scalar.numeric(span_max),
            is.null.or(tonality, assertthat::is.string),
            is.scalar.numeric(min_mean_duration),
-           is.scalar.logical(return_as_item_bank_class))
+           is.scalar.logical(return_as_item_bank_class),
+           is.scalar.logical(retain_classes)
+           )
+
+  attributes <- attributes(item_bank)
+  classes <- attributes$class
 
   item_bank <- unclass_item_bank(item_bank)
 
@@ -53,8 +60,16 @@ subset_item_bank <- function(item_bank,
   if(return_as_item_bank_class) {
     item_bank <- item_bank %>% set_item_bank_class()
   }
+
+  if(retain_classes) {
+    attr(item_bank, "item_bank_name") <- attributes$item_bank_name
+    attr(item_bank, "item_bank_type") <- attributes$item_bank_type
+    attr(item_bank, "proportion_non_redundant") <- attributes$proportion_non_redundant
+    attr(item_bank, "item_bank_orig_length") <- attributes$item_bank_orig_length
+  }
   item_bank
 }
+
 
 
 top_quantile <- function(item_bank, quantile_cut = .95) {
