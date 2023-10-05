@@ -5,7 +5,7 @@
 #' Convert corpus to item bank
 #'
 #' @param name A string of the item bank name.
-#' @param input A string denoting the input. Must be one of "files", "item_df" or "phrases_df".
+#' @param input A string denoting the input. Must be one of "files", "files_phrases", "item_df" or "phrases_df". files_phrases is when the e.g., MIDI files have already segmented phrases, and you don't want segmentation.
 #' @param output A character vector denoting the desired output type or types. You cannot create an output backwards in the hierarchy from the input.
 #' @param midi_file_dir If the input is files, a directory with MIDI files. Files should be in the format item_bank_name0.mid.
 #' @param musicxml_file_dir If the input is files, a directory with musicxml files. Files should be in the format item_bank_name0.musicxml.
@@ -23,7 +23,7 @@
 #'
 #' @examples
 create_item_bank <- function(name = "",
-                            input = c("files", "item_df", "phrase_df"),
+                            input = c("files", "files_phrases", "item_df", "phrase_df"),
                             output = c("all", "file", "item", "phrase", "ngram", "combined"),
                             midi_file_dir = NULL,
                             musicxml_file_dir = NULL,
@@ -38,7 +38,7 @@ create_item_bank <- function(name = "",
 
   stopifnot(
     assertthat::is.string(name),
-    input %in% c("files", "item_df", "phrase_df"),
+    input %in% c("files", "files_phrases", "item_df", "phrase_df"),
     is.character(output) & length(output) > 0,
     output %in% possible_output_types(),
     assertthat::is.string(midi_file_dir) | is.null(midi_file_dir),
@@ -61,7 +61,7 @@ create_item_bank <- function(name = "",
   }
 
   # Create file item bank
-  if(input == "files") {
+  if(input %in% c("files", "files_phrases") ) {
     file_item_bank <- create_item_bank_from_files(midi_file_dir, musicxml_file_dir, slice_head) %>%
       remove_melodies(remove_melodies_with_only_repeated_notes, remove_melodies_with_any_repeated_notes) %>%
       dplyr::mutate(item_type = "file",
@@ -82,9 +82,9 @@ create_item_bank <- function(name = "",
 
 
   # Create item bank with features
-  if(input %in% c("files", "item_df") & any(output %in% c("item", "all", "combined")))  {
+  if(input %in% c("files", "files_phrases", "item_df") & any(output %in% c("item", "all", "combined")))  {
     phrase_item_bank <- NA # Might get overwritten later
-    if(input == "files") {
+    if(input %in% c("files", "files_phrases") ) {
       item_item_bank <- get_melody_features(file_item_bank)  %>%
         remove_melodies(remove_melodies_with_only_repeated_notes, remove_melodies_with_any_repeated_notes) %>%
         scale_durations_to_have_min_abs_value_of_x_seconds(x = scale_durations_to_have_min_abs_value_of_x_seconds) %>%
@@ -112,21 +112,25 @@ create_item_bank <- function(name = "",
   save_item_bank(item_item_bank, name, type = "item")
 
   # Create phrase item bank (with features) i.e., chop up items based on segmentation
-  if(input %in% c("files", "item_df", "phrase_df") & any(output %in% c("phrase", "all", "combined")))  {
+  if(input %in% c("files", "files_phrases", "item_df", "phrase_df") & any(output %in% c("phrase", "all", "combined")))  {
 
     if(input == "phrase_df") {
       phrase_item_bank <- input_df
+    } else if(input == "files_phrases") {
+      phrase_item_bank <- item_item_bank
     } else {
       phrase_item_bank <- file_item_bank %>%
         create_phrases_db()
     }
 
-    phrase_item_bank <-  phrase_item_bank %>%
-      remove_melodies(remove_melodies_with_only_repeated_notes, remove_melodies_with_any_repeated_notes) %>%
-      scale_durations_to_have_min_abs_value_of_x_seconds(x = scale_durations_to_have_min_abs_value_of_x_seconds) %>%
-      get_melody_features() %>%
-      dplyr::mutate(item_type = "phrase",
-                    item_id = paste0(name, "_", item_type, "_", dplyr::row_number()))
+    if(input != "files_phrases") {
+      phrase_item_bank <-  phrase_item_bank %>%
+        remove_melodies(remove_melodies_with_only_repeated_notes, remove_melodies_with_any_repeated_notes) %>%
+        scale_durations_to_have_min_abs_value_of_x_seconds(x = scale_durations_to_have_min_abs_value_of_x_seconds) %>%
+        get_melody_features() %>%
+        dplyr::mutate(item_type = "phrase",
+                      item_id = paste0(name, "_", item_type, "_", dplyr::row_number()))
+    }
 
   }
 

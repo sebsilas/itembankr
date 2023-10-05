@@ -6,7 +6,7 @@
 \usage{
 create_item_bank(
   name = "",
-  input = c("files", "item_df", "phrase_df"),
+  input = c("files", "files_phrases", "item_df", "phrase_df"),
   output = c("all", "file", "item", "phrase", "ngram", "combined"),
   midi_file_dir = NULL,
   musicxml_file_dir = NULL,
@@ -23,7 +23,7 @@ create_item_bank(
 \arguments{
 \item{name}{A string of the item bank name.}
 
-\item{input}{A string denoting the input. Must be one of "files", "item_df" or "phrases_df".}
+\item{input}{A string denoting the input. Must be one of "files", "files_phrases", "item_df" or "phrases_df". files_phrases is when the e.g., MIDI files have already segmented phrases, and you don't want segmentation.}
 
 \item{output}{A character vector denoting the desired output type or types. You cannot create an output backwards in the hierarchy from the input.}
 
