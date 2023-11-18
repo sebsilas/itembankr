@@ -26,12 +26,12 @@ Imports:
     assertthat,
     tibble,
     stats,
-    ppm (>= 0.3.0),
     logging
 RoxygenNote: 7.2.3
 Remotes: 
     pmcharrison/hrep,
     pmcharrison/ppm
 Suggests: 
-    testthat (>= 3.0.0)
+    testthat (>= 3.0.0),
+    ppm (>= 0.3.0)
 Config/testthat/edition: 3
