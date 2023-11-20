@@ -14,24 +14,24 @@
 #' @export
 #' @examples
 subset_item_bank <- function(item_bank,
-                              item_length = NULL,
-                              quantile_cut = if("log_freq" %in% names(item_bank)) min(item_bank$log_freq) else -Inf,
-                              span_min = min(item_bank$span),
-                              span_max = max(item_bank$span),
-                              tonality = NULL,
-                              min_mean_duration = 0,
-                              return_as_item_bank_class = FALSE,
-                              retain_classes = FALSE) {
+                             item_length = NULL,
+                             quantile_cut = if("log_freq" %in% names(item_bank)) min(item_bank$log_freq) else -Inf,
+                             span_min = min(item_bank$span),
+                             span_max = max(item_bank$span),
+                             tonality = NULL,
+                             min_mean_duration = 0,
+                             return_as_item_bank_class = FALSE,
+                             retain_classes = FALSE) {
 
-  stopifnot(tibble::is_tibble(item_bank),
-           is.null.or(item_length, function(x) length(x) %in% 1:2),
-           is.scalar.numeric(quantile_cut),
+  stopifnot(is(item_bank, "tbl"), # This checks for a tibble, but allows a database backend too (i.e., from tbl(db_con, "tbl_name"))
+            is.null.or(item_length, function(x) length(x) %in% 1:2),
+            is.scalar.numeric(quantile_cut),
             is.scalar.numeric(span_min),
             is.scalar.numeric(span_max),
-           is.null.or(tonality, assertthat::is.string),
-           is.scalar.numeric(min_mean_duration),
-           is.scalar.logical(return_as_item_bank_class),
-           is.scalar.logical(retain_classes)
+            is.null.or(tonality, assertthat::is.string),
+            is.scalar.numeric(min_mean_duration),
+            is.scalar.logical(return_as_item_bank_class),
+            is.scalar.logical(retain_classes)
            )
 
   attributes <- attributes(item_bank)
@@ -53,7 +53,17 @@ subset_item_bank <- function(item_bank,
     item_bank <- item_bank %>% dplyr::filter(log_freq >= quantile_cut)
   }
 
-  if(nrow(item_bank) == 0) {
+  # Check no rows
+  if("tbl_sql" %in% class(item_bank)) {
+    nrows <- item_bank %>%
+      dplyr::summarise(num_rows = dplyr::n()) %>%
+      dplyr::pull(num_rows) %>%
+      as.integer()
+  } else {
+    nrows <- nrow(item_bank)
+  }
+
+  if(nrows == 0) {
     stop("No items could be found for this set of parameters. Try being less restrictive with your subset values, or use a different item bank.")
   }
 
