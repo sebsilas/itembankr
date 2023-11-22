@@ -45,9 +45,10 @@ subset_item_bank <- function(item_bank,
     item_bank <- item_bank %>% dplyr::filter(mode == tonality)
   }
 
-  item_bank <- item_bank %>% dplyr::filter(dplyr::between(N, item_length[1], item_length[2]),
-                                           dplyr::between(span, span_min, span_max),
-                                           mean_duration > min_mean_duration)
+  item_bank <- item_bank %>%
+    dplyr::filter(dplyr::between(N, !!item_length[1], !!item_length[2]),
+                  dplyr::between(span, !!span_min, !!span_max),
+                 mean_duration > min_mean_duration)
 
   if(quantile_cut > -Inf && "log_freq" %in% names(item_bank)) {
     item_bank <- item_bank %>% dplyr::filter(log_freq >= quantile_cut)
@@ -55,6 +56,7 @@ subset_item_bank <- function(item_bank,
 
   # Check no rows
   if("tbl_sql" %in% class(item_bank)) {
+    # (Workaround for backends)
     nrows <- item_bank %>%
       dplyr::summarise(num_rows = dplyr::n()) %>%
       dplyr::pull(num_rows) %>%
@@ -88,14 +90,15 @@ top_quantile <- function(item_bank, quantile_cut = .95) {
 
 
 parse_item_bank_length <- function(specified_length, item_bank) {
+
   if (is.null(specified_length)) {
-    specified_length <- c(1, max(item_bank$N))
+    specified_length <- c(1, item_bank %>% dplyr::pull(N) %>% max(na.rm = TRUE) )
   } else if (length(specified_length) == 1) {
     specified_length <- c(specified_length, specified_length)
   } else if (is.na(specified_length[2])) { # the NULL gets coerced to NA
-    specified_length[2] <- max(item_bank$N)
+    specified_length[2] <- item_bank %>% dplyr::pull(N) %>% max(na.rm = TRUE)
   } else if (is.na(specified_length[1])) { # the NULL gets coerced to NA
-    specified_length[1] <- min(item_bank$N)
+    specified_length[1] <- item_bank %>% dplyr::pull(N) %>% min(na.rm = TRUE)
   } else if(length(specified_length) == 2 & !all(is.na(specified_length))) {
     specified_length
   } else if(length(specified_length) > 2) {
