@@ -15,9 +15,9 @@
 #' @examples
 subset_item_bank <- function(item_bank,
                              item_length = NULL,
-                             quantile_cut = if("log_freq" %in% names(item_bank)) min(item_bank$log_freq) else -Inf,
-                             span_min = min(item_bank$span),
-                             span_max = max(item_bank$span),
+                             quantile_cut = -Inf,
+                             span_min = 0L,
+                             span_max = Inf,
                              tonality = NULL,
                              min_mean_duration = 0,
                              return_as_item_bank_class = FALSE,
@@ -49,7 +49,7 @@ subset_item_bank <- function(item_bank,
                                            dplyr::between(span, span_min, span_max),
                                            mean_duration > min_mean_duration)
 
-  if(!is.na(quantile_cut) & "log_freq" %in% names(item_bank)) {
+  if(quantile_cut > -Inf && "log_freq" %in% names(item_bank)) {
     item_bank <- item_bank %>% dplyr::filter(log_freq >= quantile_cut)
   }
 
