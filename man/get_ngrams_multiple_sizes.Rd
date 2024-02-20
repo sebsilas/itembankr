@@ -4,10 +4,14 @@
 \alias{get_ngrams_multiple_sizes}
 \title{Get ngrams of multiple sizes}
 \usage{
-get_ngrams_multiple_sizes(abs_melody, M)
+get_ngrams_multiple_sizes(
+  abs_melody,
+  lower_ngram_bound = 3L,
+  upper_ngram_bound
+)
 }
 \arguments{
-\item{M}{}
+\item{upper_ngram_bound}{}
 }
 \description{
 Get ngrams of multiple sizes

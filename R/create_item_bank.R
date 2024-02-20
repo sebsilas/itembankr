@@ -17,6 +17,9 @@
 #' @param scale_durations_to_have_min_abs_value_of_x_seconds Scale melody durations to have a minimum of x seconds.
 #' @param slice_head NULL by default. Can be an integer to slice up to a certain number of items - useful for testing.
 #' @param distinct_based_on_melody_only If TRUE, when removing redundancy, check for uniqueness only based on the melody column. Otherwise check based on melody and durations. Default is TRUE.
+#' @param lower_ngram_bound The lowest ngram size to use.
+#' @param upper_ngram_bound The highest ngram to use, default is the melody length -1.
+#' @param get_ngrukkon Whether to compute similarity between parent melodies and sub-melodies.
 #'
 #' @return
 #' @export
@@ -34,7 +37,10 @@ create_item_bank <- function(name = "",
                             remove_melodies_with_any_repeated_notes = FALSE,
                             scale_durations_to_have_min_abs_value_of_x_seconds = 0.25,
                             slice_head = NULL,
-                            distinct_based_on_melody_only = TRUE) {
+                            distinct_based_on_melody_only = TRUE,
+                            lower_ngram_bound = 3L,
+                            upper_ngram_bound = NULL,
+                            get_ngrukkon = TRUE) {
 
   stopifnot(
     assertthat::is.string(name),
@@ -51,7 +57,10 @@ create_item_bank <- function(name = "",
     is.scalar.logical(remove_melodies_with_any_repeated_notes),
     is.scalar.numeric(scale_durations_to_have_min_abs_value_of_x_seconds) | is.na(scale_durations_to_have_min_abs_value_of_x_seconds),
     is.null.or(slice_head, is.scalar.numeric),
-    is.scalar.logical(distinct_based_on_melody_only)
+    is.scalar.logical(distinct_based_on_melody_only),
+    is.integer(lower_ngram_bound),
+    is.null.or(upper_ngram_bound, is.integer),
+    is.scalar.logical(get_ngrukkon)
   )
 
   input_check(midi_file_dir, musicxml_file_dir, input_df)
@@ -85,14 +94,16 @@ create_item_bank <- function(name = "",
   if(input %in% c("files", "files_phrases", "item_df") & any(output %in% c("item", "all", "combined")))  {
     phrase_item_bank <- NA # Might get overwritten later
     if(input %in% c("files", "files_phrases") ) {
-      item_item_bank <- get_melody_features(file_item_bank)  %>%
+      item_item_bank <- file_item_bank %>%
+        get_melody_features()  %>%
         remove_melodies(remove_melodies_with_only_repeated_notes, remove_melodies_with_any_repeated_notes) %>%
         scale_durations_to_have_min_abs_value_of_x_seconds(x = scale_durations_to_have_min_abs_value_of_x_seconds) %>%
         dplyr::mutate(item_type = "item",
                       item_id = paste0(name, "_", item_type, "_", dplyr::row_number()))
 
     } else {
-      item_item_bank <- get_melody_features(input_df) %>%
+      item_item_bank <- input_df %>%
+        get_melody_features() %>%
         remove_melodies(remove_melodies_with_only_repeated_notes, remove_melodies_with_any_repeated_notes) %>%
         scale_durations_to_have_min_abs_value_of_x_seconds(x = scale_durations_to_have_min_abs_value_of_x_seconds) %>%
         dplyr::mutate(item_type = "item",
@@ -143,11 +154,15 @@ create_item_bank <- function(name = "",
   # Save
   save_item_bank(phrase_item_bank, name, type = "phrase")
 
-
   # Create ngram item bank (with features) i.e., chop up items into N-grams
   if(any(output %in% c("ngram", "all", "combined"))) {
+
+    if(is_na_scalar(phrase_item_bank)) {
+      phrase_item_bank <- item_item_bank
+    }
+
     ngram_item_bank <- phrase_item_bank %>%
-      create_ngram_item_bank(name = name) %>%
+      create_ngram_item_bank(lower_ngram_bound, upper_ngram_bound, get_ngrukkon) %>%
       remove_melodies(remove_melodies_with_only_repeated_notes, remove_melodies_with_any_repeated_notes) %>%
       dplyr::mutate(item_type = "ngram",
                     item_id = paste0(name, "_", item_type, "_", dplyr::row_number()))

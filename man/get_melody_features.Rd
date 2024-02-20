@@ -8,13 +8,18 @@ get_melody_features(
   df,
   mel_sep = ",",
   durationMeasures = TRUE,
-  abs_melody_name = "abs_melody"
+  abs_melody_name = "abs_melody",
+  print_histogram = FALSE
 )
 }
 \arguments{
 \item{df}{with column "melody" as a relative melody e.g, 2, 2, -1, 3 and "freq" a count of the number of occurrences of the dataset from which it came}
 
-\item{durationMeasures}{}
+\item{mel_sep}{What is the melody note separator?}
+
+\item{durationMeasures}{Should duration measures be computed?}
+
+\item{print_histogram}{Print histogram of results?}
 }
 \description{
 For a db of melodies, get melodic features

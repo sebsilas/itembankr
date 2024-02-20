@@ -1,16 +1,28 @@
 
 
-create_ngram_item_bank <- function(df, name) {
+#' Create ngram item bank
+#'
+#' @param df
+#' @param lower_ngram_bound
+#' @param upper_ngram_bound
+#' @param get_ngrukkon
+#' @param get_features
+#'
+#' @return
+#' @export
+#'
+#' @examples
+create_ngram_item_bank <- function(df, lower_ngram_bound = 3L, upper_ngram_bound = NULL, get_ngrukkon = TRUE, get_features = TRUE) {
 
   df %>%
     rename_to_parent() %>%
-    split_item_bank_into_ngrams() %>%
+    split_item_bank_into_ngrams(lower_ngram_bound, upper_ngram_bound, get_ngrukkon) %>%
     count_freqs() %>%
-    compute_ngram_similarity() %>%
-    get_melody_features()
+    compute_ngram_similarity(get_ngrukkon) %>%
+    { if(get_features) get_melody_features(.) else . }
 }
 
-split_item_bank_into_ngrams <- function(item_bank, M = NULL, get_ngrukkon = TRUE) {
+split_item_bank_into_ngrams <- function(item_bank, lower_ngram_bound = 3L, upper_ngram_bound = NULL, get_ngrukkon = TRUE) {
 
   if(!"midi_file" %in% names(item_bank)) {
     item_bank$midi_file <- NA
@@ -22,7 +34,7 @@ split_item_bank_into_ngrams <- function(item_bank, M = NULL, get_ngrukkon = TRUE
 
   item_bank <- item_bank %>%
     dplyr::select(parent_durations, parent_N, parent_abs_melody, parent_melody, midi_file, musicxml_file) %>%
-    dplyr::mutate(id = 1:nrow(item_bank))
+    dplyr::mutate(id = dplyr::row_number())
 
   ngrams <- purrr::pmap_dfr(item_bank, function(parent_durations,
                                                 parent_N,
@@ -32,14 +44,15 @@ split_item_bank_into_ngrams <- function(item_bank, M = NULL, get_ngrukkon = TRUE
                                                 musicxml_file,
                                                 id) {
 
-    cat('row id is: ', id,'/',nrow(item_bank), '\n')
+    cat('Row id is: ', id,'/',nrow(item_bank), '\n')
 
 
-    if(is.null(M)) {
-      M <- parent_N-1
+    if(is.null(upper_ngram_bound)) {
+      upper_ngram_bound <- parent_N-1
     }
 
-    ngram_res <- get_ngrams_multiple_sizes(str_mel_to_vector(parent_abs_melody), M) %>%
+    ngram_res <-
+      get_ngrams_multiple_sizes(str_mel_to_vector(parent_abs_melody), lower_ngram_bound, upper_ngram_bound) %>%
       dplyr::mutate(parent_durations = parent_durations,
                     parent_abs_melody = parent_abs_melody,
                     parent_melody = parent_melody,
@@ -49,8 +62,9 @@ split_item_bank_into_ngrams <- function(item_bank, M = NULL, get_ngrukkon = TRUE
   })
 
 
-  ngrams$id <- 1:nrow(ngrams)
-
+  # Give new ID
+  ngrams <- ngrams %>%
+    mutate(id = dplyr::row_number())
 
   if(!is.null(item_bank$parent_durations)) {
     ngrams <- clip_durations(ngrams)
@@ -70,8 +84,8 @@ compute_ngram_similarity <- function(ngrams, get_ngrukkon = TRUE) {
   if(get_ngrukkon) {
     logging::loginfo('Computing Similarity. nrows = %s', nrow(ngrams))
     ngrams <- ngrams %>%
-      dplyr::filter(N > 3 & length(itembankr::str_mel_to_vector(parent_abs_melody)),
-                    N > 3 & length(itembankr::str_mel_to_vector(abs_melody))) %>%
+      dplyr::filter(N > 3L & length(itembankr::str_mel_to_vector(parent_abs_melody)),
+                    N > 3L & length(itembankr::str_mel_to_vector(abs_melody))) %>%
       dplyr::rowwise() %>%
       dplyr::mutate(ngrukkon = musicassessr::ngrukkon(itembankr::str_mel_to_vector(parent_abs_melody),
                                                       itembankr::str_mel_to_vector(abs_melody))) %>%
@@ -90,26 +104,27 @@ compute_ngram_similarity <- function(ngrams, get_ngrukkon = TRUE) {
 #' Get ngrams of multiple sizes
 #'
 #' @param abs_melody
-#' @param M
+#' @param lower_ngram_bound
+#' @param upper_ngram_bound
 #'
 #' @return
 #' @export
 #'
 #' @examples
-get_ngrams_multiple_sizes <- function(abs_melody, M) {
+get_ngrams_multiple_sizes <- function(abs_melody, lower_ngram_bound = 3L, upper_ngram_bound) {
 
   if (length(abs_melody) == 1) {
     ngrams.multi <- tibble::tibble(start = NA, N = 1, value = paste(abs_melody, collapse = ","))
   } else if (length(abs_melody) == 2) {
     ngrams.multi <- tibble::tibble(start = NA, N = 2, value = paste(abs_melody, collapse = ","))
   } else {
-    if(length(abs_melody) < M) {
-      M <- length(abs_melody)
+    if(length(abs_melody) < upper_ngram_bound) {
+      upper_ngram_bound <- length(abs_melody)
     }
 
     # Grab all N-grams from 3:M for a given melody
-    ngrams.multi <- purrr::map_dfr(3:M, get_all_ngrams, x = abs_melody)
-    # But this shouldn't be called if the melody length is shorter than the N-gram length..
+    ngrams.multi <- purrr::map_dfr(lower_ngram_bound:upper_ngram_bound, get_all_ngrams, x = abs_melody)
+
   }
   ngrams.multi
 }
@@ -144,7 +159,7 @@ clip_durations <- function(df) {
                    abs_melody = value,
                    parent_durations = parent_durations,
                    durations = durations,
-                   N = as.numeric(len),
+                   N = as.integer(len),
                    parent_N = parent_N,
                    midi_file = midi_file,
                    musicxml_file = musicxml_file)

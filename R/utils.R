@@ -332,15 +332,24 @@ midi_to_sci_notation <- function(midi_note) {
 #' @export
 #'
 #' @examples
-sci_notation_to_midi <- function(sci_notation) {
-  if (length(sci_notation) == 1) {
-    midi <- sci_notation_to_midi_low_level(sci_notation)
+sci_notation_to_midi <- Vectorize(function(sci_notation) {
+
+  note_without_octave <- remove_last_char_of_string(sci_notation)
+  last_char <- get_last_char_of_string(note_without_octave)
+
+  if(last_char == "b") {
+    midi <- sci.notation.to.midi.list.flat[[as.character(sci_notation)]]
+  }
+  else if(last_char == "#") {
+    midi <- sci.notation.to.midi.list.sharp[[as.character(sci_notation)]]
   }
   else {
-    midi <- unlist(lapply(sci_notation, sci_notation_to_midi_low_level))
+    midi <- sci.notation.to.midi.list[[as.character(sci_notation)]]
   }
-  midi
-}
+
+  return(midi)
+
+})
 
 
 #' Convert pitch classes to numeric pitch classes
@@ -432,27 +441,6 @@ produce_arrhythmic_durations <- function(x, dur = .50) {
   # take in a pitch vector and produce a vector of arrhythmic durations
   res <- rep(dur, length(x))
 }
-
-
-
-
-sci_notation_to_midi_low_level <- function(sci_notation) {
-
-  note_without_octave <- remove_last_char_of_string(sci_notation)
-  last_char <- get_last_char_of_string(note_without_octave)
-
-  if(last_char == "b") {
-    midi <- sci.notation.to.midi.list.flat[[as.character(sci_notation)]]
-  }
-  else if(last_char == "#") {
-    midi <- sci.notation.to.midi.list.sharp[[as.character(sci_notation)]]
-  }
-  else {
-    midi <- sci.notation.to.midi.list[[as.character(sci_notation)]]
-  }
-}
-
-
 
 
 bpm_to_seconds_per_beat <- function(bpm) {

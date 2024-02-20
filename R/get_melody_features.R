@@ -2,14 +2,15 @@
 #' For a db of melodies, get melodic features
 #'
 #' @param df with column "melody" as a relative melody e.g, 2, 2, -1, 3 and "freq" a count of the number of occurrences of the dataset from which it came
-#' @param mel_sep
-#' @param durationMeasures
+#' @param mel_sep What is the melody note separator?
+#' @param durationMeasures Should duration measures be computed?
+#' @param print_histogram Print histogram of results?
 #'
 #' @return
 #' @export
 #'
 #' @examples
-get_melody_features <- function(df, mel_sep = ",", durationMeasures = TRUE, abs_melody_name = "abs_melody") {
+get_melody_features <- function(df, mel_sep = ",", durationMeasures = TRUE, abs_melody_name = "abs_melody", print_histogram = FALSE) {
 
   if(durationMeasures & ! "durations" %in% names(df)) {
     stop("If durationMeasures is TRUE, there must be a durations column in dataframe.")
@@ -29,16 +30,16 @@ get_melody_features <- function(df, mel_sep = ",", durationMeasures = TRUE, abs_
       N = length(as.numeric(str_mel_to_vector(!! abs_melody_name))),
       # interval entropy
       i.entropy = compute.entropy(diff(str_mel_to_vector(!! abs_melody_name)), phr.length.limits[2]-1),
-      # calculate melody spans, to make sure melodies can be presented within a user's range
+      # Calculate melody spans, to make sure melodies can be presented within a user's range
       span = compute_span(str_mel_to_vector(!! abs_melody_name)),
       mean_information_content = get_mean_information_content(str_mel_to_vector(!! abs_melody_name)),
-      # tonality
+      # Calculate tonality measures
       tonality = list( get_tonality(!! abs_melody_name, sep = mel_sep) ),
-      # step contour
+      # Calculate step contour measures
       step_contour = list( get_step_contour(!! abs_melody_name, mel_sep = mel_sep, relative = FALSE) ),
-      # KF features
+      # Caulcuate KF features
       kf_features = list( dplyr::select(int_ngram_difficulty(int_to_pattern(str_mel_to_vector(melody))), -value) ) ,
-      # duration measures
+      # Calculate duration measures
       duration_measures = get_duration_measures(durations),
       mean_duration = mean(itembankr::str_mel_to_vector(durations))
     ) %>%
@@ -58,7 +59,9 @@ get_melody_features <- function(df, mel_sep = ",", durationMeasures = TRUE, abs_
   # round all numeric columns to two decimal places
   df <- df %>% dplyr::mutate_at(dplyr::vars(numeric_vars), dplyr::funs(round(., 2)))
 
-  print(hist_item_bank(dplyr::select(df, numeric_vars)))
+  if(print_histogram) {
+    print(hist_item_bank(dplyr::select(df, numeric_vars)))
+  }
 
   df
 
@@ -70,7 +73,7 @@ compute_span <- function(x) {
 }
 
 
-# internal functions
+# Internal functions
 
 count_freqs <- function(item_bank) {
 

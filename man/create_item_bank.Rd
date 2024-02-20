@@ -17,7 +17,10 @@ create_item_bank(
   remove_melodies_with_any_repeated_notes = FALSE,
   scale_durations_to_have_min_abs_value_of_x_seconds = 0.25,
   slice_head = NULL,
-  distinct_based_on_melody_only = TRUE
+  distinct_based_on_melody_only = TRUE,
+  lower_ngram_bound = 3L,
+  upper_ngram_bound = NULL,
+  get_ngrukkon = TRUE
 )
 }
 \arguments{
@@ -46,6 +49,12 @@ create_item_bank(
 \item{slice_head}{NULL by default. Can be an integer to slice up to a certain number of items - useful for testing.}
 
 \item{distinct_based_on_melody_only}{If TRUE, when removing redundancy, check for uniqueness only based on the melody column. Otherwise check based on melody and durations. Default is TRUE.}
+
+\item{lower_ngram_bound}{The lowest ngram size to use.}
+
+\item{upper_ngram_bound}{The highest ngram to use, default is the melody length -1.}
+
+\item{get_ngrukkon}{Whether to compute similarity between parent melodies and sub-melodies.}
 }
 \description{
 Convert corpus to item bank
