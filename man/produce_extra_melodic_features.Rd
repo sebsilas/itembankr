@@ -4,10 +4,10 @@
 \alias{produce_extra_melodic_features}
 \title{Produce extra melodic features from a pyin note track}
 \usage{
-produce_extra_melodic_features(pyin_style_res)
+produce_extra_melodic_features(pyin_style_res, segment_phrase = FALSE)
 }
 \arguments{
-\item{pyin_style_res}{}
+\item{segment_phrase}{}
 }
 \description{
 Produce extra melodic features from a pyin note track

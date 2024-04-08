@@ -4,12 +4,13 @@
 #' Produce extra melodic features from a pyin note track
 #'
 #' @param pyin_style_res
+#' @param segment_phrase
 #'
 #' @return
 #' @export
 #'
 #' @examples
-produce_extra_melodic_features <- function(pyin_style_res) {
+produce_extra_melodic_features <- function(pyin_style_res, segment_phrase = FALSE) {
 
   if(!"note" %in% names(pyin_style_res) & "freq" %in% names(pyin_style_res)) {
     pyin_style_res <- pyin_style_res %>%
@@ -17,7 +18,7 @@ produce_extra_melodic_features <- function(pyin_style_res) {
   }
 
   pyin_style_res <- pyin_style_res %>%
-    segment_phrase() %>%
+    { if(segment_phrase) segment_phrase(.) else . } %>%
     musicassessr::expand_string_df_row() %>%
     dplyr::mutate(sci_notation = midi_to_sci_notation(note),
                   interval = c(NA, diff(note)), ioi = c(NA, diff(onset)),
