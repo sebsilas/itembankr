@@ -141,42 +141,7 @@ classify_duration <- function(dur_vec, ref_duration = .5){
   rhythm_class
 }
 
-#' Segment a note track by adding phrasend and phrasbeg columns with boolean markers.
-#'
-#' @param note_track a data frame with an "onset" column
-#'
-#' @return
-#' @export
-#'
-#' @examples
-segment_phrase <- function(note_track) {
-  # (originally add_phrase_info from KF; see below)
-  note_track <- note_track %>% dplyr::mutate(ioi = c(0, diff(onset)), note_pos = 1:dplyr::n())
-  outliers <- note_track %>% dplyr::pull(ioi) %>% boxplot(plot = FALSE) %>% `[[`("out")
-  outliers <- outliers[outliers > .65]
-  r <- note_track %>%
-    dplyr::mutate(phrasend = as.numeric(ioi >.96 | ioi %in% outliers),
-                  phrasbeg = as.numeric(dplyr::lag(phrasend) | note_pos == 1))
 
-  r$phrasend[is.na(r$phrasend)] <- 0
-  r$phrasend[length(r$phrasend)] <- 1
-  r
-}
-
-
-add_phrase_info <- function(note_track, end_track){
-
-  note_track <- note_track %>% dplyr::mutate(onset = time/1000)
-  final_ioi <- diff(c(note_track$onset[length(note_track$onset)], end_track/1000))
-  note_track <- note_track %>% dplyr::mutate(ioi = round(c(diff(onset), final_ioi), 2),
-                                             note_pos = 1:dplyr::n())
-
-  outliers <- note_track %>% dplyr::pull(ioi) %>% boxplot(plot = FALSE) %>% `[[`("out")
-  #outliers <- outliers[outliers > .65]
-  note_track %>%
-    dplyr::mutate(phrasend = as.numeric(ioi %in% outliers | note_pos == length(note_pos)),
-                  phrasbeg = as.numeric(dplyr::lag(phrasend) | note_pos == 1))
-}
 
 
 #' Get the cents between two vectors
@@ -615,3 +580,6 @@ hist_item_bank <- function(item_bank, nrow = NULL, ncol = NULL) {
 
 }
 
+try_or_log_error_return_na <- function(exp) {
+  tryCatch({ exp }, error = function(err) { logging::logerror(err) })
+}

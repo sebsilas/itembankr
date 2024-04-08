@@ -20,7 +20,9 @@ create_item_bank(
   distinct_based_on_melody_only = TRUE,
   lower_ngram_bound = 3L,
   upper_ngram_bound = NULL,
-  get_ngrukkon = TRUE
+  get_ngrukkon = TRUE,
+  phrase_segment_outlier_threshold = 0.65,
+  phrase_segment_ioi_threshold = 0.96
 )
 }
 \arguments{
@@ -55,6 +57,10 @@ create_item_bank(
 \item{upper_ngram_bound}{The highest ngram to use, default is the melody length -1.}
 
 \item{get_ngrukkon}{Whether to compute similarity between parent melodies and sub-melodies.}
+
+\item{phrase_segment_outlier_threshold}{A threshold for phrase segmenetation sensitivity.}
+
+\item{phrase_segment_ioi_threshold}{A threshold for phrase segmenetation sensitivity.}
 }
 \description{
 Convert corpus to item bank

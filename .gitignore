@@ -6,3 +6,8 @@
 .httr-oauth
 .DS_Store
 .Renviron
+NatMUST_file.rda
+NatMUST_item.rda
+data-raw/NatMUST
+data-raw/Slonimsky_phrases.rda
+data-raw/slonimsky.R

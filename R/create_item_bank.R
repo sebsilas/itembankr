@@ -20,6 +20,8 @@
 #' @param lower_ngram_bound The lowest ngram size to use.
 #' @param upper_ngram_bound The highest ngram to use, default is the melody length -1.
 #' @param get_ngrukkon Whether to compute similarity between parent melodies and sub-melodies.
+#' @param phrase_segment_outlier_threshold A threshold for phrase segmenetation sensitivity.
+#' @param phrase_segment_ioi_threshold A threshold for phrase segmenetation sensitivity.
 #'
 #' @return
 #' @export
@@ -40,7 +42,9 @@ create_item_bank <- function(name = "",
                             distinct_based_on_melody_only = TRUE,
                             lower_ngram_bound = 3L,
                             upper_ngram_bound = NULL,
-                            get_ngrukkon = TRUE) {
+                            get_ngrukkon = TRUE,
+                            phrase_segment_outlier_threshold = .65,
+                            phrase_segment_ioi_threshold = .96) {
 
   stopifnot(
     assertthat::is.string(name),
@@ -60,7 +64,9 @@ create_item_bank <- function(name = "",
     is.scalar.logical(distinct_based_on_melody_only),
     is.integer(lower_ngram_bound),
     is.null.or(upper_ngram_bound, is.integer),
-    is.scalar.logical(get_ngrukkon)
+    is.scalar.logical(get_ngrukkon),
+    is.numeric(phrase_segment_outlier_threshold),
+    is.numeric(phrase_segment_ioi_threshold)
   )
 
   input_check(midi_file_dir, musicxml_file_dir, input_df)
@@ -87,7 +93,6 @@ create_item_bank <- function(name = "",
 
   # Save
   save_item_bank(file_item_bank, name, type = "file")
-
 
 
   # Create item bank with features
@@ -131,7 +136,7 @@ create_item_bank <- function(name = "",
       phrase_item_bank <- item_item_bank
     } else {
       phrase_item_bank <- file_item_bank %>%
-        create_phrases_db()
+        create_phrases_db(phrase_segment_outlier_threshold = phrase_segment_outlier_threshold, ioi_threshold = phrase_segment_ioi_threshold)
     }
 
     if(input != "files_phrases") {

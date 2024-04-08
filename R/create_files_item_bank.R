@@ -7,7 +7,7 @@ create_item_bank_from_files <- function(midi_file_dir = NULL,
 
   if(!is.null(midi_file_dir)) {
 
-    midi_files <- list.files(path = midi_file_dir, pattern = "\\.mid$",  full.names = TRUE, ignore.case = TRUE)
+    midi_files <- list.files(path = midi_file_dir, pattern = "\\.midi$|\\.mid$",  full.names = TRUE, ignore.case = TRUE)
 
     if(!is.null(slice_head)) midi_files <- midi_files[1:slice_head]
 

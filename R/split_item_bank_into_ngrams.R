@@ -64,7 +64,7 @@ split_item_bank_into_ngrams <- function(item_bank, lower_ngram_bound = 3L, upper
 
   # Give new ID
   ngrams <- ngrams %>%
-    mutate(id = dplyr::row_number())
+    dplyr::mutate(id = dplyr::row_number())
 
   if(!is.null(item_bank$parent_durations)) {
     ngrams <- clip_durations(ngrams)
