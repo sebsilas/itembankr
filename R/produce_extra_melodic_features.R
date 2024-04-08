@@ -18,8 +18,7 @@ produce_extra_melodic_features <- function(pyin_style_res, segment_phrase = FALS
   }
 
   pyin_style_res <- pyin_style_res %>%
-    { if(segment_phrase) segment_phrase(.) else . } %>%
-    musicassessr::expand_string_df_row() %>%
+    { if(segment_phrase)  musicassessr::expand_string_df_row(segment_phrase(.)) else . } %>%
     dplyr::mutate(sci_notation = midi_to_sci_notation(note),
                   interval = c(NA, diff(note)), ioi = c(NA, diff(onset)),
                   ioi_class = classify_duration(ioi))
