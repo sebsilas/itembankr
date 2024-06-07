@@ -73,7 +73,8 @@ split_item_bank_into_ngrams <- function(item_bank, lower_ngram_bound = 3L, upper
 
   ngrams %>%
     dplyr::rowwise() %>%
-    dplyr::mutate(melody = paste0(diff(str_mel_to_vector(abs_melody)), collapse = ",")) %>%
+    dplyr::mutate(melody = paste0(diff(str_mel_to_vector(abs_melody)), collapse = ","),
+                  onset = paste0(cumsum(c(0, str_mel_to_vector(durations)[-length(str_mel_to_vector(durations))])), collapse = ",")) %>%
     dplyr::ungroup()
 
 }
