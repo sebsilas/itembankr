@@ -74,12 +74,16 @@ get_phrase_helper <- function(abs_melody, durations, midi_file = NULL, musicxml_
 #' @param note_track a data frame with an "onset" column
 #' @param phrase_segment_outlier_threshold A threshold for selecting outliers for durations in phrase segmentation.
 #' @param ioi_threshold A threshold for selecting outliers for iois in phrase segmentation.
+#' @param as_string_df Should the format of the DF be a string DF?
 #'
 #' @return
 #' @export
 #'
 #' @examples
-segment_phrase <- function(note_track, phrase_segment_outlier_threshold = .65, ioi_threshold = .96) {
+segment_phrase <- function(note_track,
+                           phrase_segment_outlier_threshold = .65,
+                           ioi_threshold = .96,
+                           as_string_df = TRUE) {
 
   # (originally add_phrase_info from KF; see below)
   note_track <- note_track %>% dplyr::mutate(ioi = c(0, diff(onset)), note_pos = dplyr::row_number())
@@ -102,22 +106,34 @@ segment_phrase <- function(note_track, phrase_segment_outlier_threshold = .65, i
   }
 
 
-  phrase_info <- note_track %>%
-    dplyr::mutate(phrasebeg_pos = dplyr::case_when(phrasbeg == 1 ~ note_pos, TRUE ~ NA),
-                  phrasend_pos = dplyr::case_when(phrasend == 1 ~ note_pos, TRUE ~ NA)
-    )
+  # Typically for creating an item_bank (i.e., here in itembankr, we want the output to be a string df)
+  # But in musicassessr, we don't
+  if(as_string_df) {
 
-  phrase_info <-  tibble::tibble(phrasebeg_pos = phrase_info$phrasebeg_pos[!is.na(phrase_info$phrasebeg_pos)],
-                                 phrasend_pos = phrase_info$phrasend_pos[!is.na(phrase_info$phrasend_pos)]
-  )
+    phrase_db <- note_track %>%
+      dplyr::mutate(phrasebeg_pos = dplyr::case_when(phrasbeg == 1 ~ note_pos, TRUE ~ NA),
+                    phrasend_pos = dplyr::case_when(phrasend == 1 ~ note_pos, TRUE ~ NA))
 
-  phrase_db <- purrr::pmap_dfr(phrase_info, function(phrasebeg_pos, phrasend_pos) {
-    note_track %>% dplyr::filter(dplyr::between(note_pos, phrasebeg_pos, phrasend_pos)) %>%
-      musicassessr::to_string_df() %>%
-      dplyr::select(-c(note_pos, phrasend, phrasbeg))
-  })
 
-  return(phrase_db)
+    phrase_db <-  tibble::tibble(phrasebeg_pos = phrase_db$phrasebeg_pos[!is.na(phrase_db$phrasebeg_pos)],
+                                   phrasend_pos = phrase_db$phrasend_pos[!is.na(phrase_db$phrasend_pos)])
+
+
+
+    phrase_db <- purrr::pmap_dfr(phrase_info, function(phrasebeg_pos, phrasend_pos) {
+      note_track %>%
+        dplyr::filter(dplyr::between(note_pos, phrasebeg_pos, phrasend_pos)) %>%
+        musicassessr::to_string_df() %>%
+        dplyr::select(-c(note_pos, phrasend, phrasbeg))
+    })
+
+    return(phrase_db)
+
+  } else {
+    return(note_track)
+  }
+
+
 }
 
 

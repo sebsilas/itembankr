@@ -7,7 +7,8 @@
 segment_phrase(
   note_track,
   phrase_segment_outlier_threshold = 0.65,
-  ioi_threshold = 0.96
+  ioi_threshold = 0.96,
+  as_string_df = TRUE
 )
 }
 \arguments{
@@ -16,6 +17,8 @@ segment_phrase(
 \item{phrase_segment_outlier_threshold}{A threshold for selecting outliers for durations in phrase segmentation.}
 
 \item{ioi_threshold}{A threshold for selecting outliers for iois in phrase segmentation.}
+
+\item{as_string_df}{Should the format of the DF be a string DF?}
 }
 \description{
 Segment a note track by adding phrasend and phrasbeg columns with boolean markers.
