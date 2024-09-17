@@ -120,7 +120,7 @@ segment_phrase <- function(note_track,
 
 
 
-    phrase_db <- purrr::pmap_dfr(phrase_info, function(phrasebeg_pos, phrasend_pos) {
+    phrase_db <- purrr::pmap_dfr(phrase_db, function(phrasebeg_pos, phrasend_pos) {
       note_track %>%
         dplyr::filter(dplyr::between(note_pos, phrasebeg_pos, phrasend_pos)) %>%
         musicassessr::to_string_df() %>%
@@ -137,7 +137,7 @@ segment_phrase <- function(note_track,
 }
 
 
-add_phrase_info <- function(note_track, end_track){
+add_phrase_info <- function(note_track, end_track) {
 
   note_track <- note_track %>% dplyr::mutate(onset = time/1000)
   final_ioi <- diff(c(note_track$onset[length(note_track$onset)], end_track/1000))
