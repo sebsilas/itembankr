@@ -88,7 +88,7 @@ compute_ngram_similarity <- function(ngrams, get_ngrukkon = TRUE) {
       dplyr::filter(N > 3L & length(itembankr::str_mel_to_vector(parent_abs_melody)),
                     N > 3L & length(itembankr::str_mel_to_vector(abs_melody))) %>%
       dplyr::rowwise() %>%
-      dplyr::mutate(ngrukkon = musicassessr::ngrukkon(itembankr::str_mel_to_vector(parent_abs_melody),
+      dplyr::mutate(ngrukkon_with_parent_melody = musicassessr::ngrukkon(itembankr::str_mel_to_vector(parent_abs_melody),
                                                       itembankr::str_mel_to_vector(abs_melody))) %>%
       dplyr::ungroup()
     logging::loginfo('Similarity computation complete.')
