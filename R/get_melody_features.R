@@ -200,10 +200,16 @@ int_to_pattern <- function (v) {
 
 
 get_mean_information_content <- function(seq) {
-  seq <- factor(seq)
-  mod <- ppm::new_ppm_simple(alphabet_size = 108)
-  res <- ppm::model_seq(mod, seq)
-  round(mean(res$information_content, na.rm = TRUE), 2)
+
+  if(check_pkg_installed("ppm")) {
+    seq <- factor(seq)
+    mod <- ppm::new_ppm_simple(alphabet_size = 108)
+    res <- ppm::model_seq(mod, seq)
+    return(round(mean(res$information_content, na.rm = TRUE), 2))
+  } else {
+    return(NA)
+  }
+
 }
 
 

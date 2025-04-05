@@ -131,6 +131,10 @@ get_all_ngrams <- function(x, N = 3){
 #'
 #' @examples
 classify_duration <- function(dur_vec, ref_duration = .5){
+
+  logging::loginfo("classify_duration")
+  logging::loginfo("dur_vec: %s", dur_vec)
+
   rel_dur <- dur_vec/ref_duration
   rhythm_class <- rep(-2, length(rel_dur))
   #rhythm_class[rel_dur <= .45] <- -2
@@ -582,4 +586,15 @@ hist_item_bank <- function(item_bank, nrow = NULL, ncol = NULL) {
 
 try_or_log_error_return_na <- function(exp) {
   tryCatch({ exp }, error = function(err) { logging::logerror(err) })
+}
+
+
+check_pkg_installed <- function(pkg) {
+  if (!requireNamespace(pkg, quietly = TRUE)) {
+    message("Package '", pkg, "' is not installed.")
+    return(FALSE)
+  } else {
+    message("Package '", pkg, "' is installed.")
+    return(TRUE)
+  }
 }
