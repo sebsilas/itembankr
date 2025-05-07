@@ -1,5 +1,9 @@
 
 
+is.scalar.na <- function(x) {
+  all(is.na(x)) & length(x) == 1
+}
+
 #' Make sure melodies have a minimum absolute value of x (and scale the rest of the durations to this minimum value).
 #'
 #' @param df
@@ -130,14 +134,17 @@ get_all_ngrams <- function(x, N = 3){
 #' @export
 #'
 #' @examples
-classify_duration <- function(dur_vec, ref_duration = .5){
+classify_duration <- function(dur_vec, ref_duration = .5) {
 
   logging::loginfo("classify_duration")
   logging::loginfo("dur_vec: %s", dur_vec)
 
+  if(is.scalar.na(dur_vec)) {
+    return(NA)
+  }
+
   rel_dur <- dur_vec/ref_duration
   rhythm_class <- rep(-2, length(rel_dur))
-  #rhythm_class[rel_dur <= .45] <- -2
   rhythm_class[rel_dur > 0.45] <- -1
   rhythm_class[rel_dur > 0.9] <- 0
   rhythm_class[rel_dur > 1.8] <- 1
