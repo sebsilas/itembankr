@@ -1,7 +1,7 @@
 Package: itembankr
 Type: Package
 Title: Create Item Banks From Musical Corpuses
-Version: 0.5.4
+Version: 0.5.5
 Author: Seb Silas
 Maintainer: Seb Silas <sebsilas@gmail.com>
 Description: For creating item banks from musical corpuses as well as providing preset item banks to use in music psychology tests.
