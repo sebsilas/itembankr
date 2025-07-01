@@ -27,7 +27,7 @@ Imports:
     tibble,
     stats,
     logging
-RoxygenNote: 7.3.1
+RoxygenNote: 7.3.2
 Remotes: 
     pmcharrison/hrep,
     pmcharrison/ppm

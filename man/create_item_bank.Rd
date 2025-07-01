@@ -22,7 +22,8 @@ create_item_bank(
   upper_ngram_bound = NULL,
   get_ngrukkon = TRUE,
   phrase_segment_outlier_threshold = 0.65,
-  phrase_segment_ioi_threshold = 0.96
+  phrase_segment_ioi_threshold = 0.96,
+  return_item_bank = FALSE
 )
 }
 \arguments{
@@ -61,6 +62,8 @@ create_item_bank(
 \item{phrase_segment_outlier_threshold}{A threshold for phrase segmenetation sensitivity.}
 
 \item{phrase_segment_ioi_threshold}{A threshold for phrase segmenetation sensitivity.}
+
+\item{return_item_bank}{If TRUE, return the item bank from the function}
 }
 \description{
 Convert corpus to item bank

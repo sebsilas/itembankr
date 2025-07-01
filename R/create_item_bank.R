@@ -22,6 +22,7 @@
 #' @param get_ngrukkon Whether to compute similarity between parent melodies and sub-melodies.
 #' @param phrase_segment_outlier_threshold A threshold for phrase segmenetation sensitivity.
 #' @param phrase_segment_ioi_threshold A threshold for phrase segmenetation sensitivity.
+#' @param return_item_bank If TRUE, return the item bank from the function
 #'
 #' @return
 #' @export
@@ -44,7 +45,8 @@ create_item_bank <- function(name = "",
                             upper_ngram_bound = NULL,
                             get_ngrukkon = TRUE,
                             phrase_segment_outlier_threshold = .65,
-                            phrase_segment_ioi_threshold = .96) {
+                            phrase_segment_ioi_threshold = .96,
+                            return_item_bank = FALSE) {
 
   stopifnot(
     assertthat::is.string(name),
@@ -66,7 +68,8 @@ create_item_bank <- function(name = "",
     is.null.or(upper_ngram_bound, is.integer),
     is.scalar.logical(get_ngrukkon),
     is.numeric(phrase_segment_outlier_threshold),
-    is.numeric(phrase_segment_ioi_threshold)
+    is.numeric(phrase_segment_ioi_threshold),
+    is.scalar.logical(return_item_bank)
   )
 
   input_check(midi_file_dir, musicxml_file_dir, input_df)
@@ -75,6 +78,14 @@ create_item_bank <- function(name = "",
     remove_melodies_with_only_repeated_notes <- FALSE # Because remove_melodies_with_any_repeated_notes is stricter. So don't waste processing time.
   }
 
+  # Init vars which might get overwritten later
+  file_item_bank <- NA
+  phrase_item_bank <- NA
+  item_item_bank <- NA
+  ngram_item_bank <- NA
+  combined_item_bank <- NA
+
+
   # Create file item bank
   if(input %in% c("files", "files_phrases") ) {
     file_item_bank <- create_item_bank_from_files(midi_file_dir, musicxml_file_dir, slice_head) %>%
@@ -82,8 +93,6 @@ create_item_bank <- function(name = "",
       dplyr::mutate(item_type = "file",
                     item_id = paste0(name, "_", item_type, "_", dplyr::row_number()))
 
-  } else {
-    file_item_bank <- NA
   }
 
   # Tidy up
@@ -94,10 +103,8 @@ create_item_bank <- function(name = "",
   # Save
   save_item_bank(file_item_bank, name, type = "file")
 
-
   # Create item bank with features
-  if(input %in% c("files", "files_phrases", "item_df") & any(output %in% c("item", "all", "combined")))  {
-    phrase_item_bank <- NA # Might get overwritten later
+  if(input %in% c("files", "files_phrases", "item_df") & any(output %in% c("item", "all", "ngram", "combined")))  {
     if(input %in% c("files", "files_phrases") ) {
       item_item_bank <- file_item_bank %>%
         get_melody_features()  %>%
@@ -114,8 +121,6 @@ create_item_bank <- function(name = "",
         dplyr::mutate(item_type = "item",
                       item_id = paste0(name, "_", item_type, "_", dplyr::row_number()))
     }
-  } else {
-    item_item_bank <- NA
   }
 
   # Tidy up
@@ -128,7 +133,7 @@ create_item_bank <- function(name = "",
   save_item_bank(item_item_bank, name, type = "item")
 
   # Create phrase item bank (with features) i.e., chop up items based on segmentation
-  if(input %in% c("files", "files_phrases", "item_df", "phrase_df") & any(output %in% c("phrase", "all", "combined")))  {
+  if(input %in% c("files", "files_phrases", "item_df", "phrase_df") & any(output %in% c("phrase", "ngram", "all", "combined")))  {
 
     if(input == "phrase_df") {
       phrase_item_bank <- input_df
@@ -171,9 +176,8 @@ create_item_bank <- function(name = "",
       remove_melodies(remove_melodies_with_only_repeated_notes, remove_melodies_with_any_repeated_notes) %>%
       dplyr::mutate(item_type = "ngram",
                     item_id = paste0(name, "_", item_type, "_", dplyr::row_number()))
-  } else {
-    ngram_item_bank <- NA
   }
+
   # Tidy up
   if(!is_na_scalar(ngram_item_bank)) {
     ngram_item_bank <- janitor::remove_empty(ngram_item_bank, which = "cols")
@@ -204,9 +208,8 @@ create_item_bank <- function(name = "",
                                 ) %>%
       janitor::remove_empty(which = "rows")
 
-  } else {
-    combined_item_bank <- NA
   }
+
   # Tidy up
   if(!is_na_scalar(combined_item_bank)) {
     combined_item_bank <- janitor::remove_empty(combined_item_bank, which = "cols")
@@ -219,6 +222,16 @@ create_item_bank <- function(name = "",
 
   if(launch_app & ! is_na_scalar(combined_item_bank)) {
     itembankexplorer::item_bank_explorer(combined_item_bank)
+  }
+
+  if(return_item_bank) {
+    return(list(
+      file = file_item_bank,
+      item = item_item_bank,
+      phrase = phrase_item_bank,
+      ngram = ngram_item_bank,
+      combined = combined_item_bank
+    ))
   }
 
 }
