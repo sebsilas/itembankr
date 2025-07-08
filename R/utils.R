@@ -450,7 +450,7 @@ remove_prefix <- function(file_path, prefix = NULL) {
 }
 
 
-get_division_from_midi_file <- function(file){
+get_division_from_midi_file <- function(file) {
   # borrowed from tuneR's readMidi
   con <- file(description = file, open = "rb")
   on.exit(close(con))

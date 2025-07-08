@@ -5,6 +5,7 @@
 \title{Save an item bank}
 \usage{
 save_item_bank(
+  save_item_bank_to_file,
   item_bank,
   name,
   type = c("item", "phrase", "ngram", "combined")

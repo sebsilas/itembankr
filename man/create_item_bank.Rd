@@ -11,7 +11,7 @@ create_item_bank(
   midi_file_dir = NULL,
   musicxml_file_dir = NULL,
   input_df = NULL,
-  launch_app = TRUE,
+  launch_app = FALSE,
   remove_redundancy = TRUE,
   remove_melodies_with_only_repeated_notes = TRUE,
   remove_melodies_with_any_repeated_notes = FALSE,
@@ -23,7 +23,8 @@ create_item_bank(
   get_ngrukkon = TRUE,
   phrase_segment_outlier_threshold = 0.65,
   phrase_segment_ioi_threshold = 0.96,
-  return_item_bank = FALSE
+  return_item_bank = FALSE,
+  save_item_bank_to_file = TRUE
 )
 }
 \arguments{
@@ -64,6 +65,8 @@ create_item_bank(
 \item{phrase_segment_ioi_threshold}{A threshold for phrase segmenetation sensitivity.}
 
 \item{return_item_bank}{If TRUE, return the item bank from the function}
+
+\item{save_item_bank_to_file}{Should the item_bank be saved?}
 }
 \description{
 Convert corpus to item bank

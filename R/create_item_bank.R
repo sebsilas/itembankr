@@ -23,6 +23,7 @@
 #' @param phrase_segment_outlier_threshold A threshold for phrase segmenetation sensitivity.
 #' @param phrase_segment_ioi_threshold A threshold for phrase segmenetation sensitivity.
 #' @param return_item_bank If TRUE, return the item bank from the function
+#' @param save_item_bank_to_file Should the item_bank be saved?
 #'
 #' @return
 #' @export
@@ -34,7 +35,7 @@ create_item_bank <- function(name = "",
                             midi_file_dir = NULL,
                             musicxml_file_dir = NULL,
                             input_df = NULL,
-                            launch_app = TRUE,
+                            launch_app = FALSE,
                             remove_redundancy = TRUE,
                             remove_melodies_with_only_repeated_notes = TRUE,
                             remove_melodies_with_any_repeated_notes = FALSE,
@@ -46,7 +47,8 @@ create_item_bank <- function(name = "",
                             get_ngrukkon = TRUE,
                             phrase_segment_outlier_threshold = .65,
                             phrase_segment_ioi_threshold = .96,
-                            return_item_bank = FALSE) {
+                            return_item_bank = FALSE,
+                            save_item_bank_to_file = TRUE) {
 
   stopifnot(
     assertthat::is.string(name),
@@ -69,7 +71,8 @@ create_item_bank <- function(name = "",
     is.scalar.logical(get_ngrukkon),
     is.numeric(phrase_segment_outlier_threshold),
     is.numeric(phrase_segment_ioi_threshold),
-    is.scalar.logical(return_item_bank)
+    is.scalar.logical(return_item_bank),
+    is.scalar.logical(save_item_bank_to_file)
   )
 
   input_check(midi_file_dir, musicxml_file_dir, input_df)
@@ -101,7 +104,7 @@ create_item_bank <- function(name = "",
   }
 
   # Save
-  save_item_bank(file_item_bank, name, type = "file")
+  save_item_bank(save_item_bank_to_file, file_item_bank, name, type = "file")
 
   # Create item bank with features
   if(input %in% c("files", "files_phrases", "item_df") & any(output %in% c("item", "all", "ngram", "combined")))  {
@@ -130,7 +133,7 @@ create_item_bank <- function(name = "",
   # Remove redundancy
   item_item_bank <-  remove_redundancy(remove_redundancy, item_item_bank, distinct_based_on_melody_only)
   # Save
-  save_item_bank(item_item_bank, name, type = "item")
+  save_item_bank(save_item_bank_to_file, item_item_bank, name, type = "item")
 
   # Create phrase item bank (with features) i.e., chop up items based on segmentation
   if(input %in% c("files", "files_phrases", "item_df", "phrase_df") & any(output %in% c("phrase", "ngram", "all", "combined")))  {
@@ -162,7 +165,7 @@ create_item_bank <- function(name = "",
   # Remove redundancy
   phrase_item_bank <-  remove_redundancy(remove_redundancy, phrase_item_bank, distinct_based_on_melody_only)
   # Save
-  save_item_bank(phrase_item_bank, name, type = "phrase")
+  save_item_bank(save_item_bank_to_file, phrase_item_bank, name, type = "phrase")
 
   # Create ngram item bank (with features) i.e., chop up items into N-grams
   if(any(output %in% c("ngram", "all", "combined"))) {
@@ -185,7 +188,7 @@ create_item_bank <- function(name = "",
   # Remove redundancy
   ngram_item_bank <-  remove_redundancy(remove_redundancy, ngram_item_bank, distinct_based_on_melody_only)
   # Save
-  save_item_bank(ngram_item_bank, name, type = "ngram")
+  save_item_bank(save_item_bank_to_file, ngram_item_bank, name, type = "ngram")
 
   # Create combined item bank (i.e., put everything together)
   if(any(c("all", "combined") %in% output)) {
@@ -218,7 +221,7 @@ create_item_bank <- function(name = "",
   # Remove redundancy
   combined_item_bank <-  remove_redundancy(remove_redundancy, combined_item_bank, distinct_based_on_melody_only)
   # Save
-  save_item_bank(combined_item_bank, name, type = "combined")
+  save_item_bank(save_item_bank_to_file, combined_item_bank, name, type = "combined")
 
   if(launch_app & ! is_na_scalar(combined_item_bank)) {
     itembankexplorer::item_bank_explorer(combined_item_bank)
@@ -255,6 +258,7 @@ create_item_bank_function <- function() {
 
 #' Save an item bank
 #'
+#' @param save_item_bank_to_file
 #' @param item_bank
 #' @param name
 #' @param type
@@ -263,14 +267,16 @@ create_item_bank_function <- function() {
 #' @export
 #'
 #' @examples
-save_item_bank <- function(item_bank, name, type = c("item", "phrase", "ngram", "combined")) {
-  orig_length <- attributes(item_bank)$item_bank_orig_length
-  if(!is_na_scalar(item_bank)) {
-    attr(item_bank, "item_bank_name") <- name
-    attr(item_bank, "item_bank_type") <- type
-    attr(item_bank, "proportion_non_redundant") <- if(is_na_scalar(item_bank)) NA else round(nrow(item_bank)/orig_length, 2)
-    item_bank <- set_item_bank_class(item_bank, extra = paste0(type, "_item_bank"))
-    save(item_bank, file = paste0(name, '_', type, '.rda'), compress = "xz")
+save_item_bank <- function(save_item_bank_to_file, item_bank, name, type = c("item", "phrase", "ngram", "combined")) {
+  if(save_item_bank_to_file) {
+    orig_length <- attributes(item_bank)$item_bank_orig_length
+    if(!is_na_scalar(item_bank)) {
+      attr(item_bank, "item_bank_name") <- name
+      attr(item_bank, "item_bank_type") <- type
+      attr(item_bank, "proportion_non_redundant") <- if(is_na_scalar(item_bank)) NA else round(nrow(item_bank)/orig_length, 2)
+      item_bank <- set_item_bank_class(item_bank, extra = paste0(type, "_item_bank"))
+      save(item_bank, file = paste0(name, '_', type, '.rda'), compress = "xz")
+    }
   }
 }
 
