@@ -224,8 +224,11 @@ create_item_bank <- function(name = "",
   save_item_bank(save_item_bank_to_file, combined_item_bank, name, type = "combined")
 
   if(launch_app & ! is_na_scalar(combined_item_bank)) {
+    logging::loginfo("Launching app")
     itembankexplorer::item_bank_explorer(combined_item_bank)
   }
+
+  logging::loginfo("Finished processing item bank")
 
   if(return_item_bank) {
     return(list(
@@ -269,6 +272,7 @@ create_item_bank_function <- function() {
 #' @examples
 save_item_bank <- function(save_item_bank_to_file, item_bank, name, type = c("item", "phrase", "ngram", "combined")) {
   if(save_item_bank_to_file) {
+    logging::loginfo("Saving item bank..")
     orig_length <- attributes(item_bank)$item_bank_orig_length
     if(!is_na_scalar(item_bank)) {
       attr(item_bank, "item_bank_name") <- name
