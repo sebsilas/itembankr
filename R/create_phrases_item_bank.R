@@ -86,7 +86,9 @@ segment_phrase <- function(note_track,
                            as_string_df = TRUE) {
 
   # (originally add_phrase_info from KF; see below)
-  note_track <- note_track %>% dplyr::mutate(ioi = c(0, diff(onset)), note_pos = dplyr::row_number())
+  note_track <- note_track %>%
+    dplyr::mutate(ioi = round(c(NA, diff(onset)), 2),
+                  note_pos = dplyr::row_number())
 
   bp <- note_track %>% dplyr::pull(ioi) %>% boxplot(plot = FALSE)
 
@@ -140,9 +142,12 @@ segment_phrase <- function(note_track,
 add_phrase_info <- function(note_track, end_track) {
 
   note_track <- note_track %>% dplyr::mutate(onset = time/1000)
+
   final_ioi <- diff(c(note_track$onset[length(note_track$onset)], end_track/1000))
-  note_track <- note_track %>% dplyr::mutate(ioi = round(c(diff(onset), final_ioi), 2),
-                                             note_pos = 1:dplyr::n())
+
+  note_track <- note_track %>%
+    dplyr::mutate(ioi = round(c(diff(onset), final_ioi), 2),
+                  note_pos = 1:dplyr::n())
 
   outliers <- note_track %>% dplyr::pull(ioi) %>% boxplot(plot = FALSE) %>% `[[`("out")
   #outliers <- outliers[outliers > .65]

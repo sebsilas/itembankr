@@ -39,8 +39,8 @@ list_official_item_banks <- function(default = "Berkowitz") {
 #' @examples
 list_item_bank_types <- function() {
   c("file",
-  "item",
-  "ngram",
-  "phrase",
-  "combined")
+    "item",
+    "ngram",
+    "phrase",
+    "combined")
 }

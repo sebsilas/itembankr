@@ -19,12 +19,14 @@ create_item_bank_from_files <- function(midi_file_dir = NULL,
           f <- basename(f)
           print(paste0("Error with ", f))
           print(err)
-          tibble::tibble(onset = NA, durations = NA, note = NA, midi_file = f, N = NA)
+          tibble::tibble(onset = NA, durations = NA, note = NA, midi_file = f, N = NA, bpm = NA)
         })
-    })  %>%
+    })
+
+    midi_files_df <- midi_files_df %>%
       dplyr::mutate(file_key = tools::file_path_sans_ext(midi_file)) %>%
       dplyr::rename(abs_melody = note) %>%
-      dplyr::select(abs_melody, durations, onset, midi_file, file_key)
+      dplyr::select(abs_melody, durations, onset, midi_file, file_key, bpm)
 
     res <- midi_files_df %>%
       dplyr::filter(!is.na(abs_melody))
@@ -83,9 +85,11 @@ midi_file_to_notes_and_durations <- function(midi_file, string_df = TRUE, produc
     dplyr::pull(parameterMetaSystem) %>% as.numeric()
 
   if(length(tempo) != 1) {
-    tempo_bpm <- microseconds_per_beat_to_bpm(tempo)
     tempo <- tempo[1]
   }
+
+  tempo_bpm <- microseconds_per_beat_to_bpm(tempo)
+
 
   notes <- tuneR::getMidiNotes(midi_file_dat) %>%
     tibble::as_tibble()
@@ -102,6 +106,10 @@ midi_file_to_notes_and_durations <- function(midi_file, string_df = TRUE, produc
   if(string_df) {
     out <- out %>% musicassessr::to_string_df(exclude_cols = "midi_file")
   }
+
+  out <- out %>%
+    dplyr::mutate(bpm = tempo_bpm)
+
   out
 }
 

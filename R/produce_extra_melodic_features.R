@@ -20,11 +20,13 @@ produce_extra_melodic_features <- function(pyin_style_res, segment_phrase = FALS
   pyin_style_res <- pyin_style_res %>%
     { if(segment_phrase)  musicassessr::expand_string_df_row(segment_phrase(.)) else . } %>%
     dplyr::mutate(sci_notation = midi_to_sci_notation(note),
-                  interval = c(NA, diff(note)), ioi = c(NA, diff(onset)),
+                  interval = c(NA, diff(note)),
+                  ioi = round(c(NA, diff(onset)), 2),
                   ioi_class = classify_duration(ioi))
 
   if(!"freq" %in% names(pyin_style_res)) {
-    pyin_style_res <- pyin_style_res %>% dplyr::mutate(freq = hrep::midi_to_freq(note))
+    pyin_style_res <- pyin_style_res %>%
+      dplyr::mutate(freq = hrep::midi_to_freq(note))
   }
 
   pyin_style_res %>% dplyr::mutate(
