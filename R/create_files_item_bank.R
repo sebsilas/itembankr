@@ -108,7 +108,7 @@ midi_file_to_notes_and_durations <- function(midi_file, string_df = TRUE, produc
   }
 
   out <- out %>%
-    dplyr::mutate(bpm = tempo_bpm)
+    dplyr::mutate(bpm = round(tempo_bpm))
 
   out
 }
