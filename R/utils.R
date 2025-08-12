@@ -605,3 +605,23 @@ check_pkg_installed <- function(pkg) {
     return(TRUE)
   }
 }
+
+
+
+cat_cols <- function(df) {
+  names(df)[vapply(df, function(x) is.factor(x) || is.character(x) || is.logical(x), logical(1))]
+}
+
+as_factor_with_union <- function(x, union_lvls, na_label = "(Missing)") {
+  x <- as.character(x)
+  x[!is.finite(as.numeric(x))] <- x  # harmless for chars; avoids note
+  x[is.na(x)] <- na_label
+  factor(x, levels = c(union_lvls, setdiff(unique(x), union_lvls)))
+}
+
+# entropy (Shannon) helper for proportions
+entropy_shannon <- function(p) {
+  p <- p[p > 0]
+  -sum(p * log(p))
+}
+
