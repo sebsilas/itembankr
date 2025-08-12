@@ -1,46 +1,10 @@
 
-#
-# res <- compare_item_banks(
-#   item_bank1 = WJD::phrase_item_bank,
-#   item_bank2 = Berkowitz::phrase_item_bank,
-#   bank_names = c("WJD", "Berkowitz"),
-#   standardise = TRUE,
-#   pa_type = "pc",
-#   max_plots = 24,
-#   verbose = TRUE,
-#   rotate = "equamax",
-#   name_top = 3L
-# )
-
-# # View ggplots if you like:
-# res$violin_plot
-# res$pca$joint_density_plot
-#
-# # Tibbles for downstream tidy work:
-# res$descriptives
-# res$differences |> dplyr::arrange(dplyr::desc(abs(cohen_d))) |> dplyr::slice_head(n = 20)
-# res$pca$joint_score_summary
-
-# # --- Categorical outputs ---
-# # 1. Long form data (feature, bank, level)
-# res$categoricals$long
-#
-# # 2. Test results table
-# res$categoricals$tests |>
-#   dplyr::arrange(desc(cramers_v)) |>
-#   dplyr::slice_head(n = 10)   # top 10 features by association
-#
-# # 3. Raw proportions by bank & level
-# res$categoricals$proportions
-#
-# # 4. Plot of stacked proportions
-# res$categoricals$plot
 
 
 #' Compare two item banks (music corpora) by feature distributions and components
 #'
 #' @param item_bank1,item_bank2 Data frames with (mostly) numeric feature columns.
-#' @param bank_names Character length-2 naming the banks.
+#' @param item_bank_names Character length-2 naming the banks.
 #' @param include,exclude Optional tidyselect/character to filter features.
 #' @param id_cols Character of columns to exclude from features.
 #' @param standardise Logical; scale/center features before PCA/PA.
@@ -51,13 +15,56 @@
 #' @param rotate Rotation method passed to psych::principal(): One of "none", "varimax", "promax", "oblimin", "equamax" (default: "none").
 #' @param name_top Integer; how many top-loading features to include in each component's label (default 2).
 #' @return A list with tibbles, ggplots, and PA/PCA objects.
+#' @examples
+#' set.seed(123)
+#'
+#'
+#' res <- compare_item_banks(
+#'   item_bank1  = WJD::phrase_item_bank,
+#'   item_bank2  = Berkowitz::phrase_item_bank,
+#'   item_bank_names  = c("WJD", "Berkowitz"),
+#'   standardise = TRUE,
+#'   pa_type     = "pc",
+#'   rotate      = "varimax",
+#'   name_top    = 2,
+#'   verbose     = FALSE
+#' )
+#'
+#' # --- Numeric summaries & differences ---
+#' head(res$descriptives)
+#' res$differences |>
+#'   dplyr::arrange(dplyr::desc(abs(cohen_d))) |>
+#'   dplyr::slice_head(n = 5)
+#'
+#' # --- PCA outputs ---
+#' # Named loadings (top-loadings in column names)
+#' colnames(res$pca$joint$rotation)
+#' # Score summaries by bank
+#' res$pca$joint_score_summary
+#'
+#' # --- Categorical outputs ---
+#' # Long rows (feature, .bank, level)
+#' res$categoricals$long |> dplyr::distinct(feature) |> dplyr::arrange(feature)
+#' # Tests per feature (chi-square/Fisher, Cramér's V, JS divergence)
+#' res$categoricals$tests |>
+#'   dplyr::arrange(dplyr::desc(cramers_v)) |>
+#'   dplyr::slice_head(n = 5)
+#' # Per-bank, per-level proportions
+#' res$categoricals$proportions |> dplyr::slice_head(n = 10)
+#'
+#' # --- Plots (not run on CRAN) ---
+#' \donttest{
+#'   res$violin_plot
+#'   res$categoricals$plot
+#'   res$pca$joint_density_plot
+#' }
 #'
 #'
 #' @export
 compare_item_banks <- function(
     item_bank1,
     item_bank2,
-    bank_names = c("Bank A", "Bank B"),
+    item_bank_names = c("Bank A", "Bank B"),
     include = NULL,
     exclude = NULL,
     id_cols = "item_id",
@@ -74,14 +81,14 @@ compare_item_banks <- function(
 
   if (verbose) {
     cli::cli_h1("Comparing item banks")
-    cli::cli_text("{.strong Banks}: {.val {bank_names[1]}} vs {.val {bank_names[2]}}")
+    cli::cli_text("{.strong Banks}: {.val {item_bank_names[1]}} vs {.val {item_bank_names[2]}}")
   }
 
   # 1) Clean names, align features
   ib <- prepare_item_banks(
     item_bank1, item_bank2,
     include = include, exclude = exclude, id_cols = id_cols,
-    bank_names = bank_names, verbose = verbose
+    item_bank_names = item_bank_names, verbose = verbose
   )
   x1 <- ib$x1; x2 <- ib$x2; xjoint <- ib$xjoint
   long <- ib$long
@@ -89,18 +96,18 @@ compare_item_banks <- function(
   # 2) Descriptives & differences (on raw overlap)
   if (verbose) cli::cli_rule("Descriptive statistics")
   desc_tbl <- summarise_descriptives(long)
-  diffs_tbl <- compute_feature_differences(long, bank_names)
+  diffs_tbl <- compute_feature_differences(long, item_bank_names)
 
   # 3) Plots
-  p_violin <- make_violin_plot(long, bank_names, max_plots = max_plots)
+  p_violin <- make_violin_plot(long, item_bank_names, max_plots = max_plots)
 
   # 3b) Categorical comparisons
-  cats <- prepare_categoricals_both(item_bank1, item_bank2, bank_names,
+  cats <- prepare_categoricals_both(item_bank1, item_bank2, item_bank_names,
                                     include = include, exclude = exclude,
                                     id_cols = id_cols, verbose = verbose)
   cat_long <- cats$long
 
-  cat_cmp <- compare_categoricals_both(cat_long, bank_names)
+  cat_cmp <- compare_categoricals_both(cat_long, item_bank_names)
   cat_tests <- cat_cmp$tests
   p_cat <- cat_cmp$plot
 
@@ -112,7 +119,7 @@ compare_item_banks <- function(
 
 
   # 4) Robust prep for PA/PCA (drop bad cols, impute)
-  prep <- prepare_for_components(x1, x2, bank_names, max_na_prop = 0.5, verbose = verbose)
+  prep <- prepare_for_components(x1, x2, item_bank_names, max_na_prop = 0.5, verbose = verbose)
   x1_c <- prep$x1_clean; x2_c <- prep$x2_clean; xj_c <- prep$xjoint_clean
   x1_i <- prep$x1_imp;   x2_i <- prep$x2_imp;   xj_i <- prep$xjoint_imp
 
@@ -126,12 +133,12 @@ compare_item_banks <- function(
   if (verbose) cli::cli_rule("Parallel analysis")
   pa <- run_parallel_analysis(
     x1_imp = x1_pa, x2_imp = x2_pa, xjoint_imp = xj_pa,
-    pa_type = pa_type, bank_names = bank_names, verbose = verbose
+    pa_type = pa_type, item_bank_names = item_bank_names, verbose = verbose
   )
 
   # 6) PCA on cleaned (non-imputed) data, k capped to available columns
-  k1 <- min(pa$each[[bank_names[1]]]$n, ncol(x1_c), nrow(x1_c) - 1L)
-  k2 <- min(pa$each[[bank_names[2]]]$n, ncol(x2_c), nrow(x2_c) - 1L)
+  k1 <- min(pa$each[[item_bank_names[1]]]$n, ncol(x1_c), nrow(x1_c) - 1L)
+  k2 <- min(pa$each[[item_bank_names[2]]]$n, ncol(x2_c), nrow(x2_c) - 1L)
   kj <- min(pa$joint$n,                 ncol(xj_c), nrow(xj_c) - 1L)
 
   pr1 <- run_pca_named(x1_c, k = k1, standardise = standardise, prefix = "PC",
@@ -142,7 +149,7 @@ compare_item_banks <- function(
                        impute = "median", rotate = rotate, name_top = name_top)
 
 
-  pcs <- summarise_joint_pcs(prj, n1 = nrow(x1_c), bank_names = bank_names, verbose = verbose)
+  pcs <- summarise_joint_pcs(prj, n1 = nrow(x1_c), item_bank_names = item_bank_names, verbose = verbose)
   p_pc_density <- pcs$density_plot
   comp_summary <- pcs$summary
 
@@ -155,7 +162,7 @@ compare_item_banks <- function(
 
   # 9) Return
   out <- list(
-    banks = bank_names,
+    banks = item_bank_names,
     features_overlap = ib$feature_map,
     dropped_for_components = prep$dropped_features,
     kept_for_components = prep$kept_features,
@@ -170,7 +177,7 @@ compare_item_banks <- function(
     violin_plot = p_violin,
     pa = pa,
     pca = list(
-      each = setNames(list(pr1, pr2), bank_names),
+      each = setNames(list(pr1, pr2), item_bank_names),
       joint = prj,
       joint_score_summary = comp_summary,
       joint_density_plot = p_pc_density
@@ -185,7 +192,7 @@ compare_item_banks <- function(
 
 prepare_item_banks <- function(item_bank1, item_bank2,
                                include = NULL, exclude = NULL, id_cols = NULL,
-                               bank_names = c("Bank A","Bank B"),
+                               item_bank_names = c("Bank A","Bank B"),
                                verbose = TRUE) {
   ib1 <- janitor::clean_names(item_bank1)
   ib2 <- janitor::clean_names(item_bank2)
@@ -221,12 +228,12 @@ prepare_item_banks <- function(item_bank1, item_bank2,
 
   if (verbose) {
     cli::cli_rule("Feature alignment")
-    cli::cli_text("{.strong Numeric in {bank_names[1]}}: {length(all1)} | {.strong in {bank_names[2]}}: {length(all2)}")
+    cli::cli_text("{.strong Numeric in {item_bank_names[1]}}: {length(all1)} | {.strong in {item_bank_names[2]}}: {length(all2)}")
     cli::cli_text("{.strong Overlap used}: {length(common)} features")
   }
 
-  df1 <- tibble::as_tibble(ib1[, common, drop = FALSE]) |> dplyr::mutate(.bank = bank_names[1])
-  df2 <- tibble::as_tibble(ib2[, common, drop = FALSE]) |> dplyr::mutate(.bank = bank_names[2])
+  df1 <- tibble::as_tibble(ib1[, common, drop = FALSE]) |> dplyr::mutate(.bank = item_bank_names[1])
+  df2 <- tibble::as_tibble(ib2[, common, drop = FALSE]) |> dplyr::mutate(.bank = item_bank_names[2])
   long <- dplyr::bind_rows(df1, df2) |>
     tidyr::pivot_longer(cols = dplyr::all_of(common), names_to = "feature", values_to = "value")
 
@@ -264,7 +271,7 @@ summarise_descriptives <- function(long) {
     )
 }
 
-compute_feature_differences <- function(long, bank_names) {
+compute_feature_differences <- function(long, item_bank_names) {
   pooled_sd <- function(x, y) {
     nx <- sum(!is.na(x)); ny <- sum(!is.na(y))
     sx <- stats::sd(x, na.rm = TRUE); sy <- stats::sd(y, na.rm = TRUE)
@@ -272,8 +279,8 @@ compute_feature_differences <- function(long, bank_names) {
   }
 
   purrr::map_dfr(unique(long$feature), function(f) {
-    x <- long$value[long$feature == f & long$.bank == bank_names[1]]
-    y <- long$value[long$feature == f & long$.bank == bank_names[2]]
+    x <- long$value[long$feature == f & long$.bank == item_bank_names[1]]
+    y <- long$value[long$feature == f & long$.bank == item_bank_names[2]]
     pd <- pooled_sd(x, y)
     d  <- (mean(x, na.rm = TRUE) - mean(y, na.rm = TRUE)) / pd
     ks_p <- tryCatch(stats::ks.test(x, y)$p.value, error = function(e) NA_real_)
@@ -294,7 +301,7 @@ compute_feature_differences <- function(long, bank_names) {
     dplyr::arrange(dplyr::desc(abs(cohen_d)))
 }
 
-make_violin_plot <- function(long, bank_names, max_plots = 36) {
+make_violin_plot <- function(long, item_bank_names, max_plots = 36) {
   feats <- sort(unique(long$feature))
   feats <- head(feats, min(length(feats), max_plots))
   plot_dat <- dplyr::filter(long, feature %in% feats)
@@ -314,7 +321,7 @@ make_violin_plot <- function(long, bank_names, max_plots = 36) {
 
 # ---------- Robust PA/PCA prep & PA (safe) ----------
 
-prepare_for_components <- function(x1, x2, bank_names, max_na_prop = 0.5, verbose = TRUE) {
+prepare_for_components <- function(x1, x2, item_bank_names, max_na_prop = 0.5, verbose = TRUE) {
   # replace Inf with NA
   fix_inf <- function(df) dplyr::mutate(df, dplyr::across(dplyr::everything(),
                                                           ~ ifelse(is.infinite(.x), NA_real_, .x)))
@@ -398,7 +405,7 @@ safe_parallel_n <- function(df_imp, pa_type = c("pc","fa")) {
 
 run_parallel_analysis <- function(x1_imp, x2_imp, xjoint_imp,
                                   pa_type = c("pc","fa"),
-                                  bank_names = c("Bank A","Bank B"),
+                                  item_bank_names = c("Bank A","Bank B"),
                                   verbose = TRUE) {
   pa_type <- match.arg(pa_type)
 
@@ -408,13 +415,13 @@ run_parallel_analysis <- function(x1_imp, x2_imp, xjoint_imp,
 
   if (verbose) {
     cli::cli_text("{.strong PA components (type: {pa_type})}:")
-    cli::cli_text("• {bank_names[1]}: {cli::col_green(nc1)}  • {bank_names[2]}: {cli::col_green(nc2)}  • joint: {cli::col_green(ncj)}")
+    cli::cli_text("• {item_bank_names[1]}: {cli::col_green(nc1)}  • {item_bank_names[2]}: {cli::col_green(nc2)}  • joint: {cli::col_green(ncj)}")
   }
 
   each_list <- setNames(
     list(list(results = NULL, n = nc1),
          list(results = NULL, n = nc2)),
-    bank_names
+    item_bank_names
   )
 
   list(
@@ -504,7 +511,7 @@ run_pca_named <- function(x, k = NULL, standardise = TRUE, prefix = "PC",
 
 
 
-summarise_joint_pcs <- function(prj, n1, bank_names, verbose = TRUE) {
+summarise_joint_pcs <- function(prj, n1, item_bank_names, verbose = TRUE) {
   scores <- tibble::as_tibble(prj$x)
   if (ncol(scores) == 0L) {
     if (verbose) cli::cli_alert_warning("No principal components available after cleaning.")
@@ -515,7 +522,7 @@ summarise_joint_pcs <- function(prj, n1, bank_names, verbose = TRUE) {
   }
 
   scj_comp <- dplyr::bind_cols(
-    tibble::tibble(.bank = c(rep(bank_names[1], n1), rep(bank_names[2], nrow(scores) - n1))),
+    tibble::tibble(.bank = c(rep(item_bank_names[1], n1), rep(item_bank_names[2], nrow(scores) - n1))),
     scores
   ) |>
     tidyr::pivot_longer(-.bank, names_to = "component", values_to = "score")
@@ -571,7 +578,7 @@ print_tables_cli <- function(desc_tbl, diffs_tbl, comp_summary) {
 
 # TWO-bank categorical comparison: chi-square/Fisher, Cramér's V, JS divergence (robust)
 # TWO-bank categorical comparison: chi-square/Fisher, Cramér's V, JS divergence
-compare_categoricals_both <- function(long_cat, bank_names) {
+compare_categoricals_both <- function(long_cat, item_bank_names) {
   # Always exclude these categorical features
   always_exclude <- c("abs_melody", "durations", "item_type", "melody")
 
@@ -613,11 +620,11 @@ compare_categoricals_both <- function(long_cat, bank_names) {
         tidyr::pivot_wider(names_from = .bank, values_from = n, values_fill = 0)
 
       # make sure both bank columns are present even if one was absent
-      missing_cols <- setdiff(bank_names, names(w_n))
+      missing_cols <- setdiff(item_bank_names, names(w_n))
       if (length(missing_cols)) for (mc in missing_cols) w_n[[mc]] <- 0L
-      w_n <- w_n[, c("level", bank_names), drop = FALSE]
+      w_n <- w_n[, c("level", item_bank_names), drop = FALSE]
 
-      mat <- as.matrix(w_n[bank_names])
+      mat <- as.matrix(w_n[item_bank_names])
       rownames(mat) <- w_n$level
       n_tot <- sum(mat); r <- nrow(mat); c <- ncol(mat)
 
@@ -637,12 +644,12 @@ compare_categoricals_both <- function(long_cat, bank_names) {
       # proportions wide (for JS)
       w_p <- dplyr::filter(prop_tbl, feature == fname) |>
         tidyr::pivot_wider(names_from = .bank, values_from = prop, values_fill = 0)
-      missing_cols_p <- setdiff(bank_names, names(w_p))
+      missing_cols_p <- setdiff(item_bank_names, names(w_p))
       if (length(missing_cols_p)) for (mc in missing_cols_p) w_p[[mc]] <- 0
-      w_p <- w_p[, c("level", bank_names), drop = FALSE]
+      w_p <- w_p[, c("level", item_bank_names), drop = FALSE]
 
-      p1 <- stats::setNames(w_p[[bank_names[1]]], w_p$level)
-      p2 <- stats::setNames(w_p[[bank_names[2]]], w_p$level)
+      p1 <- stats::setNames(w_p[[item_bank_names[1]]], w_p$level)
+      p2 <- stats::setNames(w_p[[item_bank_names[2]]], w_p$level)
       js <- js_div(p1, p2)
 
       tibble::tibble(
@@ -682,7 +689,7 @@ compare_categoricals_both <- function(long_cat, bank_names) {
 
 
 # Two-bank categorical prep with level union/alignment
-prepare_categoricals_both <- function(item_bank1, item_bank2, bank_names,
+prepare_categoricals_both <- function(item_bank1, item_bank2, item_bank_names,
                                       include = NULL, exclude = NULL,
                                       id_cols = NULL, verbose = TRUE) {
   # local helper (factor/character/logical treated as categorical)
@@ -749,8 +756,8 @@ prepare_categoricals_both <- function(item_bank1, item_bank2, bank_names,
       dplyr::mutate(level = ifelse(is.na(level), "(Missing)", as.character(level)))
   }
 
-  l1 <- make_long(ib1, bank_names[1])
-  l2 <- make_long(ib2, bank_names[2])
+  l1 <- make_long(ib1, item_bank_names[1])
+  l2 <- make_long(ib2, item_bank_names[2])
   long <- dplyr::bind_rows(l1, l2)
 
   if (verbose) {

@@ -2,7 +2,7 @@
 
 # res1 <- analyse_item_bank(
 #   item_bank = WJD::phrase_item_bank,
-#   bank_name = "WJD",
+#   item_bank_name = "WJD",
 #   standardise = TRUE,
 #   pa_type = "pc",
 #   rotate = "equamax",
@@ -36,7 +36,7 @@
 #' top-loading features.
 #'
 #' @param item_bank Data frame with (mostly) numeric feature columns.
-#' @param bank_name Character name for the bank (used in plots/tables).
+#' @param item_bank_name Character name for the bank (used in plots/tables).
 #' @param include,exclude Optional tidyselect/character to filter features.
 #' @param id_cols Character of columns to exclude from features.
 #' @param standardise Logical; scale/center features before PA/PCA.
@@ -51,10 +51,45 @@
 #'
 #' @return A list: descriptives tibble, violin plot, PA selection,
 #'         PCA loadings/scores (named), and PC score summaries/plot.
+#'@examples
+#' set.seed(456)
+#'
+#' res1 <- analyse_item_bank(
+#'   item_bank   = Berkowitz::phrase_item_bank,
+#'   item_bank_name   = "Berkowitz",
+#'   standardise = TRUE,
+#'   pa_type     = "pc",
+#'   rotate      = "oblimin",
+#'   name_top    = 3L,
+#'   max_plots   = 12,
+#'   verbose     = FALSE
+#' )
+#'
+#' # --- Numeric summaries ---
+#' head(res1$descriptives)
+#'
+#' # --- PCA outputs (single bank) ---
+#' colnames(res1$pca$model$rotation)  # component names with top-loading features
+#' res1$pca$score_summary
+#'
+#' # --- Categorical outputs (single bank) ---
+#' # Long rows (feature, level – with .bank for consistency)
+#' res1$categoricals$long |> dplyr::distinct(feature) |> dplyr::arrange(feature)
+#' # Per-feature diversity summary (n_levels, entropy, top_level, top_prop)
+#' res1$categoricals$summary |>
+#'   dplyr::arrange(dplyr::desc(entropy)) |>
+#'   dplyr::slice_head(n = 5)
+#'
+#' # --- Plots (not run on CRAN) ---
+#' \donttest{
+#'   res1$violin_plot
+#'   res1$pca$density_plot
+#'   res1$categoricals$plot
+#' }
 #' @export
 analyse_item_bank <- function(
     item_bank,
-    bank_name = "Bank",
+    item_bank_name = "Bank",
     include = NULL,
     exclude = NULL,
     id_cols = "item_id",
@@ -72,13 +107,13 @@ analyse_item_bank <- function(
 
   if (verbose) {
     cli::cli_h1("Analysing item bank")
-    cli::cli_text("{.strong Bank}: {.val {bank_name}}")
+    cli::cli_text("{.strong Bank}: {.val {item_bank_name}}")
   }
 
   # -- Clean names, select numeric, tidy long (reuse bivariate style) ------
   sb <- prepare_single_bank(
     item_bank,
-    bank_name = bank_name,
+    item_bank_name = item_bank_name,
     include = include,
     exclude = exclude,
     id_cols  = id_cols,
@@ -91,10 +126,10 @@ analyse_item_bank <- function(
   desc_tbl <- summarise_descriptives(long)
 
   # Plot: we can reuse the violin helper by keeping a single '.bank'
-  p_violin <- make_violin_plot(long, bank_names = bank_name, max_plots = max_plots)
+  p_violin <- make_violin_plot(long, item_bank_names = item_bank_name, max_plots = max_plots)
 
   # categorical: single-bank
-  cats1 <- prepare_single_categoricals(item_bank, bank_name,
+  cats1 <- prepare_single_categoricals(item_bank, item_bank_name,
                                        include = include, exclude = exclude,
                                        id_cols = id_cols, verbose = verbose)
   cat_long1 <- cats1$long
@@ -110,7 +145,7 @@ analyse_item_bank <- function(
 
 
   # -- Robust prep for PA/PCA (reuse two-bank helper by passing x twice) ---
-  prep <- prepare_for_components(x, x, bank_names = c(bank_name, bank_name),
+  prep <- prepare_for_components(x, x, item_bank_names = c(item_bank_name, item_bank_name),
                                  max_na_prop = 0.5, verbose = verbose)
   x_c <- prep$x1_clean
   x_i <- prep$x1_imp
@@ -141,7 +176,7 @@ analyse_item_bank <- function(
 
   # -- Return ---------------------------------------------------------------
   out <- list(
-    bank = bank_name,
+    bank = item_bank_name,
     kept_for_components    = prep$kept_features,
     dropped_for_components = prep$dropped_features,
     descriptives = desc_tbl,
@@ -165,7 +200,7 @@ analyse_item_bank <- function(
 
 # Clean a single bank + make a long tibble compatible with make_violin_plot()
 prepare_single_bank <- function(item_bank,
-                                bank_name = "Bank",
+                                item_bank_name = "Bank",
                                 include = NULL, exclude = NULL, id_cols = NULL,
                                 verbose = TRUE) {
   ib <- janitor::clean_names(item_bank)
@@ -206,7 +241,7 @@ prepare_single_bank <- function(item_bank,
 
   x <- tibble::as_tibble(ib[, common, drop = FALSE])
   long <- x |>
-    dplyr::mutate(.bank = bank_name) |>
+    dplyr::mutate(.bank = item_bank_name) |>
     tidyr::pivot_longer(cols = dplyr::all_of(common), names_to = "feature", values_to = "value")
 
   list(x = x, long = long, features = common)
@@ -261,7 +296,7 @@ print_tables_cli_single <- function(desc_tbl, comp_summary) {
 
 
 # Single-bank categorical prep (long format with .bank)
-prepare_single_categoricals <- function(item_bank, bank_name,
+prepare_single_categoricals <- function(item_bank, item_bank_name,
                                         include = NULL, exclude = NULL,
                                         id_cols = NULL, verbose = TRUE) {
   # always exclude these from categorical analyses
@@ -309,7 +344,7 @@ prepare_single_categoricals <- function(item_bank, bank_name,
   }
 
   long <- tibble::as_tibble(ib[, pick, drop = FALSE]) |>
-    dplyr::mutate(.bank = bank_name) |>
+    dplyr::mutate(.bank = item_bank_name) |>
     tidyr::pivot_longer(cols = dplyr::all_of(pick),
                         names_to = "feature", values_to = "level") |>
     dplyr::mutate(level = ifelse(is.na(level), "(Missing)", as.character(level)))
