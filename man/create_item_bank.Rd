@@ -7,9 +7,10 @@
 create_item_bank(
   name = "",
   input = c("files", "files_phrases", "item_df", "phrase_df"),
-  output = c("all", "file", "item", "phrase", "ngram", "combined"),
+  output = c("all", "file", "item", "phrase", "ngram", "combined", "audio"),
   midi_file_dir = NULL,
   musicxml_file_dir = NULL,
+  audio_file_dir = NULL,
   input_df = NULL,
   launch_app = FALSE,
   remove_redundancy = TRUE,
@@ -24,21 +25,28 @@ create_item_bank(
   phrase_segment_outlier_threshold = 0.65,
   phrase_segment_ioi_threshold = 0.96,
   return_item_bank = FALSE,
-  save_item_bank_to_file = TRUE
+  save_item_bank_to_file = TRUE,
+  reencode_audio_files_to_lame_mp3 = FALSE,
+  reencode_audio_files_to_lame_mp3_verbose = FALSE
 )
 }
 \arguments{
 \item{name}{A string of the item bank name.}
 
-\item{input}{A string denoting the input. Must be one of "files", "files_phrases", "item_df" or "phrases_df". files_phrases is when the e.g., MIDI files have already segmented phrases, and you don't want segmentation.}
+\item{input}{A string denoting the input. Must be one of "files", "files_phrases", "item_df" or "phrase_df". files_phrases is when the e.g., MIDI files have already segmented phrases, and you don't want segmentation.}
 
 \item{output}{A character vector denoting the desired output type or types. You cannot create an output backwards in the hierarchy from the input.}
 
-\item{midi_file_dir}{If the input is files, a directory with MIDI files. Files should be in the format item_bank_name0.mid.}
+\item{midi_file_dir}{If the input is files/files_phrases, a directory with MIDI files. Files should be in the format item_bank_name0.mid.}
 
-\item{musicxml_file_dir}{If the input is files, a directory with musicxml files. Files should be in the format item_bank_name0.musicxml.}
+\item{musicxml_file_dir}{If the input is files/files_phrases, a directory with musicxml files. Files should be in the format item_bank_name0.musicxml.}
 
-\item{input_df}{If using input item_df or _phrases_df, an input dataframe.}
+\item{audio_file_dir}{Optional directory containing audio files (.wav or .mp3).
+When set, an "audio" item bank is created (see \code{output}), and audio
+features are prefixed \code{AUD_}. If MIDI/MusicXML are also present,
+melodic features are prefixed \code{MEL_}.}
+
+\item{input_df}{If using input item_df or phrase_df, an input dataframe.}
 
 \item{launch_app}{Should the app be launched at the end?}
 
@@ -67,6 +75,10 @@ create_item_bank(
 \item{return_item_bank}{If TRUE, return the item bank from the function}
 
 \item{save_item_bank_to_file}{Should the item_bank be saved?}
+
+\item{reencode_audio_files_to_lame_mp3}{If producing an audio item bank, should audio files be "normalised" to lame mp3 first?}
+
+\item{reencode_audio_files_to_lame_mp3_verbose}{Regarding the above argument, should the output be verbose?}
 }
 \description{
 Convert corpus to item bank

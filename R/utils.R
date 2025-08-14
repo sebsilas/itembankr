@@ -513,29 +513,29 @@ convert_pitches_and_durs <- function(pitches, durs, relativeMelodies, relativeDu
 }
 
 
-input_check <- function(midi_file_dir, musicxml_file_dir, input_df) {
+input_check <- function(midi_file_dir, musicxml_file_dir, input_df, audio_file_dir = NULL) {
 
-  if(is.null(midi_file_dir) & is.null(musicxml_file_dir) & is.null(input_df)) {
-
-      stop('At least one of midi_file_dir, musicxml_file_dir or input_df is required.')
-
-  } else if(!is.null(midi_file_dir) & !is.null(input_df)) {
-
-      stop('You may only use the input_df OR the midi_file_dir arguments.')
-
-  } else if(!is.null(musicxml_file_dir) & !is.null(input_df)) {
-
-      stop('You may only use the input_df OR the musicxml_file_dir arguments.')
-
-  } else if(!is.null(midi_file_dir) & !is.null(musicxml_file_dir) & !is.null(input_df)) {
-
-      stop('You may only use the input_df OR the musicxml_file_dir and midi_file_dir arguments.')
-
-  } else {
-      return()
+  # Case 1: absolutely nothing provided
+  if (is.null(midi_file_dir) && is.null(musicxml_file_dir) &&
+      is.null(input_df) && is.null(audio_file_dir)) {
+    stop("At least one of midi_file_dir, musicxml_file_dir, audio_file_dir, or input_df is required.")
   }
 
+  # Case 2: too many primary sources (item_df / MIDI-MusicXML)
+  if (!is.null(input_df) && (!is.null(midi_file_dir) || !is.null(musicxml_file_dir))) {
+    stop("You may only use input_df OR the midi_file_dir/musicxml_file_dir arguments, not both.")
+  }
+
+  # Case 3: avoid having both MIDI and MusicXML without intention
+  # (Only block if you know your downstream code can’t merge them; otherwise remove)
+  if (!is.null(midi_file_dir) && !is.null(musicxml_file_dir) && is.null(input_df)) {
+    logging::loginfo("Both midi_file_dir and musicxml_file_dir provided — assuming they correspond to the same set of files.")
+  }
+
+  # All clear
+  invisible(TRUE)
 }
+
 
 
 
@@ -554,17 +554,30 @@ sym_diff <- function(a,b) setdiff(union(a,b), intersect(a,b))
 
 
 possible_output_types <- function() {
-  c("all", "file", "item", "phrase", "ngram", "combined")
+  c("all", "file", "item", "phrase", "ngram", "combined", "audio")
 }
+
 
 
 rename_to_parent <- function(df) {
-  df %>%
-    dplyr::rename(parent_abs_melody = abs_melody,
-                  parent_melody = melody,
-                  parent_durations = durations,
-                  parent_N = N)
+  nm <- names(df)
+
+  ren <- c( # NEW = OLD
+    MEL_parent_abs_melody = if ("MEL_abs_melody" %in% nm) "MEL_abs_melody" else if ("abs_melody" %in% nm) "abs_melody" else NA_character_,
+    MEL_parent_melody     = if ("MEL_melody"     %in% nm) "MEL_melody"     else if ("melody"     %in% nm) "melody"     else NA_character_,
+    MEL_parent_durations  = if ("MEL_durations"  %in% nm) "MEL_durations"  else if ("durations"  %in% nm) "durations"  else NA_character_,
+    MEL_parent_N          = if ("MEL_N"          %in% nm) "MEL_N"          else if ("N"          %in% nm) "N"          else NA_character_
+  )
+
+  # keep only found sources, and don’t touch if parent_* already exists
+  ren <- ren[!is.na(ren)]
+  ren <- ren[!names(ren) %in% nm]
+
+  if (!length(ren)) return(df)
+  dplyr::rename(df, !!!ren)
 }
+
+
 
 
 # Plotting functions
@@ -624,4 +637,39 @@ entropy_shannon <- function(p) {
   p <- p[p > 0]
   -sum(p * log(p))
 }
+
+
+log_err_but_return_na <- function(err) {
+  cli::cli_warn( cli::col_red(err) )
+  return(NA)
+}
+
+
+order_item_bank_cols <- function(df) {
+  if (is_na_scalar(df) || !is.data.frame(df) || ncol(df) == 0L) return(df)
+
+  nm <- names(df)
+
+  meta <- nm[startsWith(nm, "META_")]
+  mel  <- nm[startsWith(nm, "MEL_")]
+  aud  <- nm[startsWith(nm, "AUD_")]
+
+  # Important META columns first if present
+  meta_core  <- c("META_item_id", "META_item_type", "META_file_key")
+  meta_other <- setdiff(meta, meta_core)
+
+  # Anything not prefixed goes to the end (kept, not dropped)
+  rest <- setdiff(nm, c(meta, mel, aud))
+
+  new_order <- c(
+    meta_core[meta_core %in% nm],
+    sort(meta_other),
+    sort(mel),
+    sort(aud),
+    sort(rest)
+  )
+
+  df[, new_order, drop = FALSE]
+}
+
 

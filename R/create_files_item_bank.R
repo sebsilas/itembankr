@@ -9,16 +9,22 @@ create_item_bank_from_files <- function(midi_file_dir = NULL,
 
     midi_files <- list.files(path = midi_file_dir, pattern = "\\.midi$|\\.mid$",  full.names = TRUE, ignore.case = TRUE)
 
+    if(length(midi_files) == 0) {
+      cli::cli_abort(cli::col_red("midi_file_dir specified but no MIDI files found in directory."))
+    }
+
     if(!is.null(slice_head)) midi_files <- midi_files[1:slice_head]
 
     midi_files_df <- purrr::map_dfr(midi_files, function(f) {
-      print(f)
+
+      cat(cli::col_blue("Processing MIDI file: ", f, "\n"))
+
       tryCatch({
         midi_file_to_notes_and_durations(f, produce_extra_melodic_features = FALSE) },
         error = function(err) {
           f <- basename(f)
-          print(paste0("Error with ", f))
-          print(err)
+          cat(cli::col_red("Error with file: ", f), "\n")
+          cat(cli::col_red("Error message", err), "\n")
           tibble::tibble(onset = NA, durations = NA, note = NA, midi_file = f, N = NA, bpm = NA)
         })
     })
@@ -38,6 +44,11 @@ create_item_bank_from_files <- function(midi_file_dir = NULL,
     # NB. For some reason musicxml files currently don't add up often, with abs_melody and durations
 
     music_xml_files <- list.files(path = musicxml_file_dir, pattern = "\\.musicxml$",  full.names = TRUE, ignore.case = TRUE)
+
+    if(length(midi_files) == 0) {
+      cli::cli_abort(cli::col_red("musicxml_file_dir specified but no musicxml files found in directory."))
+    }
+
     music_xml_files_df <- purrr::map_dfr(music_xml_files, function(f) {
       print(f)
       musicxml_file_to_notes_and_durations(f)
