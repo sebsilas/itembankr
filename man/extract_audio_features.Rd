@@ -7,11 +7,13 @@
 extract_audio_features(
   audio_file_path,
   reencode_audio_file_to_lame_mp3 = FALSE,
-  reencode_audio_file_to_lame_mp3_verbose = FALSE
+  verbose = FALSE,
+  normalise_to_wav = TRUE,
+  normalisation_pars = list(target_lufs = -18.3, lra = 7, tp = -1.5)
 )
 }
 \arguments{
-\item{reencode_audio_file_to_lame_mp3_verbose}{}
+\item{normalisation_pars}{}
 }
 \description{
 Extract audio features from an audio file

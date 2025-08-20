@@ -27,7 +27,9 @@
 #' @param return_item_bank If TRUE, return the item bank from the function
 #' @param save_item_bank_to_file Should the item_bank be saved?
 #' @param reencode_audio_files_to_lame_mp3 If producing an audio item bank, should audio files be "normalised" to lame mp3 first?
-#' @param reencode_audio_files_to_lame_mp3_verbose  Regarding the above argument, should the output be verbose?
+#' @param verbose Should the output be verbose?
+#' @param normalise_audio Should audio files be normalised?
+#' @param audio_normalisation_pars Parameters for audio normalisation.
 #'
 #' @return
 #' @export
@@ -55,7 +57,9 @@ create_item_bank <- function(name = "",
                              return_item_bank = FALSE,
                              save_item_bank_to_file = TRUE,
                              reencode_audio_files_to_lame_mp3 = FALSE,
-                             reencode_audio_files_to_lame_mp3_verbose = FALSE) {
+                             verbose = FALSE,
+                             normalise_audio = TRUE,
+                             audio_normalisation_pars = NULL) {
 
   stopifnot(
     assertthat::is.string(name),
@@ -82,7 +86,9 @@ create_item_bank <- function(name = "",
     is.scalar.logical(return_item_bank),
     is.scalar.logical(save_item_bank_to_file),
     is.scalar.logical(reencode_audio_files_to_lame_mp3),
-    is.scalar.logical(reencode_audio_files_to_lame_mp3_verbose)
+    is.scalar.logical(verbose),
+    is.scalar.logical(normalise_audio),
+    is.null.or(audio_normalisation_pars, is.list)
   )
 
   # NOTE: original input_check signature (audio-only not supported there)
@@ -127,7 +133,9 @@ create_item_bank <- function(name = "",
       audio_file_dir,
       slice_head = slice_head,
       reencode_audio_files_to_lame_mp3 = reencode_audio_files_to_lame_mp3,
-      reencode_audio_files_to_lame_mp3_verbose = reencode_audio_files_to_lame_mp3_verbose
+      verbose = verbose,
+      normalise_to_wav = normalise_audio,
+      audio_normalisation_pars = audio_normalisation_pars
     )
 
     # Prefix first so we have META_file_key / AUD_* ready

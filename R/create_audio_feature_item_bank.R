@@ -4,7 +4,10 @@
 create_audio_feature_bank <- function(audio_file_dir,
                                       slice_head = NULL,
                                       reencode_audio_files_to_lame_mp3 = FALSE,
-                                      reencode_audio_files_to_lame_mp3_verbose = FALSE) {
+                                      verbose = FALSE,
+                                      normalise_to_wav = TRUE,
+                                      audio_normalisation_pars = list(target_lufs = -18.3, lra = 7, tp = -1.5)
+                                      ) {
 
   if (is.null(audio_file_dir)) return(NA)
 
@@ -22,7 +25,9 @@ create_audio_feature_bank <- function(audio_file_dir,
     safe <- tryCatch(
       extract_audio_features(fp,
                              reencode_audio_files_to_lame_mp3,
-                             reencode_audio_files_to_lame_mp3_verbose),
+                             verbose,
+                             normalise_to_wav,
+                             audio_normalisation_pars),
       error = function(e) {
         cli::cli_warn(c("!" = paste("Audio feature extraction failed for", basename(fp)),
                         ">" = conditionMessage(e)))
@@ -53,7 +58,9 @@ create_audio_feature_bank <- function(audio_file_dir,
 #'
 #' @param audio_file_path
 #' @param reencode_audio_file_to_lame_mp3
-#' @param reencode_audio_file_to_lame_mp3_verbose
+#' @param verbose
+#' @param normalise_to_wav
+#' @param normalisation_pars
 #'
 #' @return
 #' @export
@@ -61,12 +68,21 @@ create_audio_feature_bank <- function(audio_file_dir,
 #' @examples
 extract_audio_features <- function(audio_file_path,
                                    reencode_audio_file_to_lame_mp3 = FALSE,
-                                   reencode_audio_file_to_lame_mp3_verbose = FALSE) {
+                                   verbose = FALSE,
+                                   normalise_to_wav = TRUE,
+                                   normalisation_pars = list(target_lufs = -18.3, lra = 7, tp = -1.5)) {
 
   original_audio_file_path <- audio_file_path
 
   if(reencode_audio_file_to_lame_mp3) {
-    audio_file_path <- reencode_audio_file(audio_file_path, verbose = reencode_audio_file_to_lame_mp3_verbose)
+    audio_file_path <- reencode_audio_file(audio_file_path, verbose = verbose)
+  }
+
+  if(normalise_to_wav) {
+    audio_file_path <- normalise_to_wav(audio_file_path, verbose = verbose,
+                                        target_lufs = normalisation_pars$target_lufs,
+                                        tp = normalisation_pars$tp,
+                                        lra = normalisation_pars$lra)
   }
 
   file_extension <- tools::file_ext(audio_file_path)
@@ -251,5 +267,40 @@ reencode_audio_file <- function(file_path, verbose = FALSE) {
 }
 
 
-# tt <- extract_audio_features("~/lyricassessr/data-raw/Vocals/Tenor2/Eh/Tenor2_Eh_24.wav")
+
+normalise_to_wav <- function(infile,
+                             target_lufs = -18.0,  # set to your training median LUFS
+                             tp = -1.5,
+                             lra = 7,
+                             sr = 44100,
+                             mono = TRUE,
+                             trim_silence = FALSE,
+                             verbose = FALSE) {
+
+  # expand ~ and fail early if not found
+  p <- normalizePath(path.expand(infile), mustWork = TRUE)
+  out_wav <- tempfile(fileext = ".wav")
+
+  # build a no-spaces -af chain so we don't need to quote it
+  trimf <- if (trim_silence)
+    "silenceremove=start_periods=1:start_threshold=-50dB:stop_periods=1:stop_threshold=-50dB," else ""
+  af <- paste0(
+    trimf,
+    "loudnorm=I=", target_lufs, ":LRA=", lra, ":TP=", tp, ":linear=true,",
+    "aformat=channel_layouts=", if (mono) "mono" else "stereo", ",",
+    "aresample=", sr
+  )
+
+  command <- glue::glue_safe(
+    "ffmpeg -y -hide_banner -nostats -i '{p}' -af {af} -sample_fmt s16 '{out_wav}'"
+  )
+
+  if (verbose) cat(cli::col_blue(glue::glue("command: {command}")), "\n")
+  status <- system(command, ignore.stdout = TRUE, ignore.stderr = FALSE)
+  if (status != 0) stop(glue::glue("ffmpeg failed (status {status})."))
+
+  out_wav
+}
+
+# tt <- extract_audio_features("~/lyricassessr/data-raw/Vocals/Tenor2/Eh/Tenor2_Eh_24.wav", normalise_to_wav = TRUE, verbose = TRUE)
 

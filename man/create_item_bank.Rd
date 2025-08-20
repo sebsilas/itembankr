@@ -27,7 +27,9 @@ create_item_bank(
   return_item_bank = FALSE,
   save_item_bank_to_file = TRUE,
   reencode_audio_files_to_lame_mp3 = FALSE,
-  reencode_audio_files_to_lame_mp3_verbose = FALSE
+  verbose = FALSE,
+  normalise_audio = TRUE,
+  audio_normalisation_pars = NULL
 )
 }
 \arguments{
@@ -78,7 +80,11 @@ melodic features are prefixed \code{MEL_}.}
 
 \item{reencode_audio_files_to_lame_mp3}{If producing an audio item bank, should audio files be "normalised" to lame mp3 first?}
 
-\item{reencode_audio_files_to_lame_mp3_verbose}{Regarding the above argument, should the output be verbose?}
+\item{verbose}{Should the output be verbose?}
+
+\item{normalise_audio}{Should audio files be normalised?}
+
+\item{audio_normalisation_pars}{Parameters for audio normalisation.}
 }
 \description{
 Convert corpus to item bank
