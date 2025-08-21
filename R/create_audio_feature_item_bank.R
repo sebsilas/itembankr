@@ -70,7 +70,7 @@ extract_audio_features <- function(audio_file_path,
                                    reencode_audio_file_to_lame_mp3 = FALSE,
                                    verbose = FALSE,
                                    normalise_to_wav = TRUE,
-                                   normalisation_pars = list(target_lufs = -18.3, lra = 7, tp = -1.5)) {
+                                   normalisation_pars = list(target_lufs = -18.3, lra = 7, tp = -1.5, trim_silence = TRUE)) {
 
   original_audio_file_path <- audio_file_path
 
@@ -82,7 +82,8 @@ extract_audio_features <- function(audio_file_path,
     audio_file_path <- normalise_to_wav(audio_file_path, verbose = verbose,
                                         target_lufs = normalisation_pars$target_lufs,
                                         tp = normalisation_pars$tp,
-                                        lra = normalisation_pars$lra)
+                                        lra = normalisation_pars$lra,
+                                        trim_silence = normalisation_pars$trim_silence)
   }
 
   file_extension <- tools::file_ext(audio_file_path)
