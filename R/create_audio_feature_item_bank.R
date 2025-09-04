@@ -1,4 +1,8 @@
 
+# TODO: look at bioacoustics package features
+# Also VAMP plugins
+
+
 
 # Build audio features from a folder (wav/mp3).
 create_audio_feature_bank <- function(audio_file_dir,
@@ -50,35 +54,25 @@ create_audio_feature_bank <- function(audio_file_dir,
 
 
 
+# Main feature extractor --------------------------------------------------
 
-# TODO: look at bioacoustics package features
-# Also VAMP plugins
-
-#' Extract audio features from an audio file
-#'
-#' @param audio_file_path
-#' @param reencode_audio_file_to_lame_mp3
-#' @param verbose
-#' @param normalise_to_wav
-#' @param normalisation_pars
-#'
-#' @return
-#' @export
-#'
-#' @examples
 extract_audio_features <- function(audio_file_path,
                                    reencode_audio_file_to_lame_mp3 = FALSE,
                                    verbose = FALSE,
                                    normalise_to_wav = TRUE,
-                                   normalisation_pars = list(target_lufs = -18.3, lra = 7, tp = -1.5, trim_silence = TRUE)) {
+                                   normalisation_pars = list(
+                                     target_lufs = -18.3,
+                                     lra = 7,
+                                     tp = -1.5,
+                                     trim_silence = TRUE)) {
 
   original_audio_file_path <- audio_file_path
 
-  if(reencode_audio_file_to_lame_mp3) {
+  if (reencode_audio_file_to_lame_mp3) {
     audio_file_path <- reencode_audio_file(audio_file_path, verbose = verbose)
   }
 
-  if(normalise_to_wav) {
+  if (normalise_to_wav) {
     audio_file_path <- normalise_to_wav(audio_file_path, verbose = verbose,
                                         target_lufs = normalisation_pars$target_lufs,
                                         tp = normalisation_pars$tp,
@@ -88,38 +82,56 @@ extract_audio_features <- function(audio_file_path,
 
   file_extension <- tools::file_ext(audio_file_path)
 
-  # Load the audio file
-  if(file_extension %in% c("wav", "WAV")) {
-    audio <- tuneR::readWave(audio_file_path)
-  } else if(file_extension %in% c("mp3", "MP3")) {
-    audio <- tuneR::readMP3(audio_file_path)
-  } else {
-    stop("Audio file format not supported.")
-  }
+  # Load the audio file safely
+  audio <- tryCatch({
+    if (tolower(file_extension) == "wav") {
+      tuneR::readWave(audio_file_path)
+    } else if (tolower(file_extension) == "mp3") {
+      tuneR::readMP3(audio_file_path)
+    } else {
+      stop("Audio file format not supported.")
+    }
+  }, error = function(e) {
+    logging::logerror(glue::glue("Failed to load audio: {e$message}"))
+    return(NULL)
+  })
+
+  if (is.null(audio)) return(NULL)
 
   # Extract MFCCs
-  mfcc_df <- tuneR::melfcc(audio) %>%
-    tibble::as_tibble() %>%
-    dplyr::mutate(across(everything(), ~ ifelse(is.nan(.), NA, .))) %>%
-    dplyr::summarise(dplyr::across(dplyr::everything(),
-                                   list(mean = ~ mean(.x, na.rm = TRUE),
-                                        sd = ~ sd(.x, na.rm = TRUE))))
+  mfcc_df <- tryCatch({
+    tuneR::melfcc(audio) %>%
+      tibble::as_tibble() %>%
+      dplyr::mutate(across(everything(), ~ ifelse(is.nan(.), NA, .))) %>%
+      dplyr::summarise(dplyr::across(dplyr::everything(),
+                                     list(mean = ~ mean(.x, na.rm = TRUE),
+                                          sd = ~ sd(.x, na.rm = TRUE))))
+  }, error = function(e) {
+    logging::logwarn(glue::glue("MFCC extraction failed: {e$message}"))
+    tibble::tibble()
+  })
 
   # Extract spectral features
-  spec <- seewave::spec(audio, plot = FALSE, fftw = F)
-
-  if(anyNA(spec[, "x"])) {
-    logging::logwarn("Removing NAs from x")
-    spec <- spec[!is.na(spec[, "x"]), ]
-  }
-
-  spec_prop <- seewave::specprop(spec)
-  spec_df <- as.data.frame(t(spec_prop))
+  spec_df <- tryCatch({
+    spec <- seewave::spec(audio, plot = FALSE, fftw = FALSE)
+    if (anyNA(spec[, "x"])) {
+      logging::logwarn("Removing NAs from spectral data (x)")
+      spec <- spec[!is.na(spec[, "x"]), ]
+    }
+    spec_prop <- seewave::specprop(spec)
+    as.data.frame(t(spec_prop))
+  }, error = function(e) {
+    logging::logwarn(glue::glue("Spectral feature extraction failed: {e$message}"))
+    tibble::tibble()
+  })
 
   # Extract temporal features
-  tempo_df <- extract_temporal_features(audio)
+  tempo_df <- tryCatch(extract_temporal_features(audio),
+                       error = function(e) tibble::tibble())
 
-  ecoacoustics_df <- compute_ecoacoustics(audio)
+  # Extract ecoacoustics
+  ecoacoustics_df <- tryCatch(compute_ecoacoustics(audio),
+                              error = function(e) tibble::tibble())
 
   # Combine all features into one data frame
   features_df <- dplyr::bind_cols(
@@ -129,49 +141,63 @@ extract_audio_features <- function(audio_file_path,
     dplyr::relocate(file_key) %>%
     dplyr::mutate(dplyr::across(dplyr::where(is.list), ~ purrr::map_dbl(., as.numeric)))
 
-
   return(features_df)
 }
 
 
-# Function to extract temporal features including envelope features
-extract_temporal_features <- function(audio) {
+# Temporal features -------------------------------------------------------
 
+extract_temporal_features <- function(audio) {
   # Extract basic information
   duration <- length(audio@left) / audio@samp.rate
   sample_rate <- audio@samp.rate
   bit_depth <- audio@bit
 
-  # Calculate amplitude envelope
-  env <- seewave::env(audio, plot = FALSE)
-  norm_env <- env / max(env)
+  # Envelope
+  env <- tryCatch(seewave::env(audio, plot = FALSE),
+                  error = function(e) rep(0, length(audio@left)))
+  norm_env <- if (all(env == 0)) rep(0, length(env)) else env / max(env, na.rm = TRUE)
 
-  # Attack time
-  attack_start <- which(norm_env >= 0.1)[1]
-  attack_end <- which(norm_env >= 0.9)[1]
-  attack_time <- (attack_end - attack_start) / sample_rate
+  # Attack
+  attack_start <- safe_first(which(norm_env >= 0.1))
+  attack_end   <- safe_first(which(norm_env >= 0.9))
+  attack_time <- if (!is.na(attack_start) && !is.na(attack_end) && attack_end > attack_start) {
+    (attack_end - attack_start) / sample_rate
+  } else NA_real_
 
-  # Sustain level and decay time
-  sustain_level <- mean(norm_env[(attack_end + 1):(length(norm_env) / 2)])
-  decay_end <- which(norm_env <= sustain_level)[1]
-  decay_time <- (decay_end - attack_end) / sample_rate
+  # Sustain + Decay
+  sustain_level <- if (!is.na(attack_end) && attack_end < length(norm_env)/2) {
+    mean(norm_env[(attack_end + 1):(length(norm_env) / 2)], na.rm = TRUE)
+  } else NA_real_
 
-  # Release time
-  release_start <- which(norm_env == max(norm_env[(length(norm_env) / 2):length(norm_env)]))[1]
-  release_end <- which(norm_env <= 0.1)[1]
-  release_time <- (release_end - release_start) / sample_rate
+  decay_end <- if (!is.na(sustain_level)) safe_first(which(norm_env <= sustain_level)) else NA_integer_
+  decay_time <- if (!is.na(decay_end) && !is.na(attack_end) && decay_end > attack_end) {
+    (decay_end - attack_end) / sample_rate
+  } else NA_real_
+
+  # Release
+  release_start <- if (length(norm_env) > 1) {
+    half <- ceiling(length(norm_env) / 2)
+    safe_first(which(norm_env == max(norm_env[half:length(norm_env)], na.rm = TRUE)))
+  } else NA_integer_
+
+  release_end <- safe_first(which(norm_env <= 0.1))
+  release_time <- if (!is.na(release_start) && !is.na(release_end) && release_end > release_start) {
+    (release_end - release_start) / sample_rate
+  } else NA_real_
 
   # Temporal centroid
-  time_vector <- seq(0, length(norm_env) - 1) / sample_rate
-  temporal_centroid <- sum(time_vector * norm_env) / sum(norm_env)
+  temporal_centroid <- if (sum(norm_env, na.rm = TRUE) > 0) {
+    time_vector <- seq(0, length(norm_env) - 1) / sample_rate
+    sum(time_vector * norm_env, na.rm = TRUE) / sum(norm_env, na.rm = TRUE)
+  } else NA_real_
 
-  # Root Mean Square (RMS) and Zero-Crossing Rate (ZCR)
-  rms_val <- seewave::rms(env)
-  zcr <- seewave::zcr(audio, wl = NULL)
-  shannon_entropy <- seewave::H(audio)
+  # Other features
+  rms_val <- tryCatch(seewave::rms(env), error = function(e) NA_real_)
+  zcr <- tryCatch(seewave::zcr(audio, wl = NULL), error = function(e) NA_real_)
+  shannon_entropy <- tryCatch(seewave::H(audio), error = function(e) NA_real_)
 
-  # Create a list to hold the features
-  temporal_features <- tibble::tibble(
+  tibble::tibble(
     duration = duration,
     sample_rate = sample_rate,
     bit_depth = bit_depth,
@@ -184,93 +210,85 @@ extract_temporal_features <- function(audio) {
     release_time = release_time,
     temporal_centroid = temporal_centroid
   )
-
-  return(temporal_features)
 }
 
 
-
+# Ecoacoustics ------------------------------------------------------------
 
 compute_ecoacoustics <- function(audio) {
+  mspec <- tryCatch(seewave::meanspec(audio, plot = FALSE),
+                    error = function(e) matrix(NA))
+  fp <- tryCatch(nrow(seewave::fpeaks(mspec, plot = FALSE)),
+                 error = function(e) NA_integer_)
+  sdspec <- tryCatch(seewave::soundscapespec(audio, plot = FALSE),
+                     error = function(e) matrix(NA))
 
-  mspec <- seewave::meanspec(audio, plot=FALSE)
-  fp <- nrow(seewave::fpeaks(mspec, plot=FALSE))
-  sdspec <- seewave::soundscapespec(audio, plot=FALSE)
   ndsi <- tryCatch(soundecology::ndsi(audio),
-                   error = function(err) {
-                     logging::logerror(err)
-                     NA
-                   })
-  env <- seewave::env(audio, plot = FALSE)
+                   error = function(e) { logging::logerror(e$message); NA })
+
+  env <- tryCatch(seewave::env(audio, plot = FALSE),
+                  error = function(e) rep(0, length(audio@left)))
 
   adi <- tryCatch(soundecology::acoustic_complexity(audio),
-                  error = function(cond) {
-                    print(cond)
-                    list(AciTotAll_left = NA,
-                         AciTotAll_left_bymin = NA)
-                  })
+                  error = function(e) list(AciTotAll_left = NA, AciTotAll_left_bymin = NA))
 
-
-  aci <- tryCatch(seewave::ACI(audio),
-                  error = function(cond) {
-                    print(cond)
-                    NA
-                  })
-
+  aci <- tryCatch(seewave::ACI(audio), error = function(e) NA)
 
   tibble::tibble(
     acoustic_complexity_index = aci,
     acoustic_diversity_index = adi$AciTotAll_left,
     acoustic_diversity_index2 = adi$AciTotAll_left_bymin,
-    acoustic_diversity_index3 = tryCatch(soundecology::acoustic_diversity(audio)$adi_left, error = log_err_but_return_na),
+    acoustic_diversity_index3 = tryCatch(soundecology::acoustic_diversity(audio)$adi_left,
+                                         error = log_err_but_return_na),
     acoustic_entropy_index = tryCatch(seewave::H(audio), error = log_err_but_return_na),
-    acoustic_evenness_index = tryCatch(soundecology::acoustic_evenness(audio)$aei_left, error = log_err_but_return_na),
-    bioacoustic_index = tryCatch(soundecology::bioacoustic_index(audio)$left_area, error = log_err_but_return_na),
+    acoustic_evenness_index = tryCatch(soundecology::acoustic_evenness(audio)$aei_left,
+                                       error = log_err_but_return_na),
+    bioacoustic_index = tryCatch(soundecology::bioacoustic_index(audio)$left_area,
+                                 error = log_err_but_return_na),
     frequency_peaks_number = fp,
     amplitude_index = tryCatch(seewave::M(audio), error = log_err_but_return_na),
-    normalized_difference_soundscape_index = tryCatch(seewave::NDSI(sdspec), error = log_err_but_return_na),
-    spectral_entropy_ndsi = if(is.scalar.na(ndsi)) NA else ndsi$ndsi_left,
-    spectral_entropy_anthrophony = if(is.scalar.na(ndsi)) NA else ndsi$anthrophony_left,
-    spectral_entropy_biophony = if(is.scalar.na(ndsi)) NA else ndsi$biophony_left,
+    normalized_difference_soundscape_index = tryCatch(seewave::NDSI(sdspec),
+                                                      error = log_err_but_return_na),
+    spectral_entropy_ndsi = if (is_scalar_na(ndsi)) NA else ndsi$ndsi_left,
+    spectral_entropy_anthrophony = if (is_scalar_na(ndsi)) NA else ndsi$anthrophony_left,
+    spectral_entropy_biophony = if (is_scalar_na(ndsi)) NA else ndsi$biophony_left,
     spectral_entropy2 = tryCatch(seewave::sh(mspec), error = log_err_but_return_na),
     temporal_entropy = tryCatch(seewave::th(env), error = log_err_but_return_na)
   )
-
 }
 
 
-reencode_audio_file <- function(file_path, verbose = FALSE) {
+# Reencode audio ----------------------------------------------------------
 
+reencode_audio_file <- function(file_path, verbose = FALSE) {
   outpath <- tempfile(fileext = ".mp3")
 
-  if(verbose) cat(cli::col_blue("Re-encoding audio file to LAME mp3. New outpath: %s", outpath))
+  if (verbose) cat(cli::col_blue(sprintf(
+    "Re-encoding audio file to LAME mp3. New outpath: %s", outpath)))
 
   command <- glue::glue_safe(
     "ffmpeg -i '{file_path}' -codec:a libmp3lame -qscale:a 0 -vn '{outpath}'"
   )
 
-  if(verbose) cat(cli::col_blue("command: %s", command))
+  if (verbose) cat(cli::col_blue(sprintf("command: %s", command)))
 
   tryCatch({
-    # Try re-encoding audio file using ffmpeg. Save the output
-    # as a variable to prevent it printing
-    silence <- system(command, ignore.stdout = TRUE, ignore.stderr = TRUE)
-
-  }, error = function(e){
-    # If unsuccessful, return the original file, unencoded
+    system(command, ignore.stdout = TRUE, ignore.stderr = TRUE)
+  }, error = function(e) {
     cat(cli::col_red("Unable to reencode audio file"))
-    outpath <- file_path
+    outpath <<- file_path
   }, finally = function() {
     unlink(file_path)
-  }
-  )
+  })
+
   outpath
 }
 
 
+# Normalize audio ---------------------------------------------------------
 
 normalise_to_wav <- function(infile,
-                             target_lufs = -18.0,  # set to your training median LUFS
+                             target_lufs = -18.0,
                              tp = -1.5,
                              lra = 7,
                              sr = 44100,
@@ -278,13 +296,12 @@ normalise_to_wav <- function(infile,
                              trim_silence = FALSE,
                              verbose = FALSE) {
 
-  # expand ~ and fail early if not found
   p <- normalizePath(path.expand(infile), mustWork = TRUE)
   out_wav <- tempfile(fileext = ".wav")
 
-  # build a no-spaces -af chain so we don't need to quote it
   trimf <- if (trim_silence)
     "silenceremove=start_periods=1:start_threshold=-50dB:stop_periods=1:stop_threshold=-50dB," else ""
+
   af <- paste0(
     trimf,
     "loudnorm=I=", target_lufs, ":LRA=", lra, ":TP=", tp, ":linear=true,",
@@ -297,11 +314,16 @@ normalise_to_wav <- function(infile,
   )
 
   if (verbose) cat(cli::col_blue(glue::glue("command: {command}")), "\n")
+
   status <- system(command, ignore.stdout = TRUE, ignore.stderr = FALSE)
   if (status != 0) stop(glue::glue("ffmpeg failed (status {status})."))
 
   out_wav
 }
+
+
+safe_first <- function(x) if (length(x) > 0) x[1] else NA_integer_
+
 
 # tt <- extract_audio_features("~/lyricassessr/data-raw/Vocals/Tenor2/Eh/Tenor2_Eh_24.wav", normalise_to_wav = TRUE, verbose = TRUE)
 
