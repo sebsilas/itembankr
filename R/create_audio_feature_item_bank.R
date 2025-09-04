@@ -52,7 +52,7 @@ create_audio_feature_bank <- function(audio_file_dir,
 }
 
 
-
+# t <- extract_audio_features("~/Downloads/1.mp3")
 
 # Main feature extractor --------------------------------------------------
 
@@ -111,6 +111,7 @@ extract_audio_features <- function(audio_file_path,
     tibble::tibble()
   })
 
+
   # Extract spectral features
   spec_df <- tryCatch({
     spec <- seewave::spec(audio, plot = FALSE, fftw = FALSE)
@@ -125,9 +126,11 @@ extract_audio_features <- function(audio_file_path,
     tibble::tibble()
   })
 
+
   # Extract temporal features
   tempo_df <- tryCatch(extract_temporal_features(audio),
                        error = function(e) tibble::tibble())
+
 
   # Extract ecoacoustics
   ecoacoustics_df <- tryCatch(compute_ecoacoustics(audio),
@@ -216,6 +219,7 @@ extract_temporal_features <- function(audio) {
 # Ecoacoustics ------------------------------------------------------------
 
 compute_ecoacoustics <- function(audio) {
+
   mspec <- tryCatch(seewave::meanspec(audio, plot = FALSE),
                     error = function(e) matrix(NA))
   fp <- tryCatch(nrow(seewave::fpeaks(mspec, plot = FALSE)),
@@ -249,9 +253,9 @@ compute_ecoacoustics <- function(audio) {
     amplitude_index = tryCatch(seewave::M(audio), error = log_err_but_return_na),
     normalized_difference_soundscape_index = tryCatch(seewave::NDSI(sdspec),
                                                       error = log_err_but_return_na),
-    spectral_entropy_ndsi = if (is_scalar_na(ndsi)) NA else ndsi$ndsi_left,
-    spectral_entropy_anthrophony = if (is_scalar_na(ndsi)) NA else ndsi$anthrophony_left,
-    spectral_entropy_biophony = if (is_scalar_na(ndsi)) NA else ndsi$biophony_left,
+    spectral_entropy_ndsi = if (is.scalar.na(ndsi)) NA else ndsi$ndsi_left,
+    spectral_entropy_anthrophony = if (is.scalar.na(ndsi)) NA else ndsi$anthrophony_left,
+    spectral_entropy_biophony = if (is.scalar.na(ndsi)) NA else ndsi$biophony_left,
     spectral_entropy2 = tryCatch(seewave::sh(mspec), error = log_err_but_return_na),
     temporal_entropy = tryCatch(seewave::th(env), error = log_err_but_return_na)
   )
