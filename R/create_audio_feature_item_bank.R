@@ -54,8 +54,19 @@ create_audio_feature_bank <- function(audio_file_dir,
 
 # t <- extract_audio_features("~/Downloads/1.mp3")
 
-# Main feature extractor --------------------------------------------------
 
+#' Extract audio features
+#'
+#' @param audio_file_path
+#' @param reencode_audio_file_to_lame_mp3
+#' @param verbose
+#' @param normalise_to_wav
+#' @param normalisation_pars
+#'
+#' @returns
+#' @export
+#'
+#' @examples
 extract_audio_features <- function(audio_file_path,
                                    reencode_audio_file_to_lame_mp3 = FALSE,
                                    verbose = FALSE,

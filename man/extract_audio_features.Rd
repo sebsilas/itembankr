@@ -2,19 +2,19 @@
 % Please edit documentation in R/create_audio_feature_item_bank.R
 \name{extract_audio_features}
 \alias{extract_audio_features}
-\title{Extract audio features from an audio file}
+\title{Extract audio features}
 \usage{
 extract_audio_features(
   audio_file_path,
   reencode_audio_file_to_lame_mp3 = FALSE,
   verbose = FALSE,
   normalise_to_wav = TRUE,
-  normalisation_pars = list(target_lufs = -18.3, lra = 7, tp = -1.5)
+  normalisation_pars = list(target_lufs = -18.3, lra = 7, tp = -1.5, trim_silence = TRUE)
 )
 }
 \arguments{
 \item{normalisation_pars}{}
 }
 \description{
-Extract audio features from an audio file
+Extract audio features
 }
