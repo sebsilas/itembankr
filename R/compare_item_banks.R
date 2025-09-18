@@ -301,23 +301,68 @@ compute_feature_differences <- function(long, item_bank_names) {
     dplyr::arrange(dplyr::desc(abs(cohen_d)))
 }
 
-make_violin_plot <- function(long, item_bank_names, max_plots = 36) {
-  feats <- sort(unique(long$feature))
+make_violin_plot <- function(long, item_bank_names, max_plots = 36, remove_features = NULL) {
+
+  # Define feature families (with new "General Information")
+  feature_families <- tibble::tibble(
+    feature = c(
+      # Frequency-related
+      "freq", "rel_freq", "log_freq", "IDF",
+      # Melodic / entropy
+      "i.entropy",
+      # Pitch / interval
+      "span", "mean_int_size", "int_range", "dir_change",
+      "mean_dir_change", "int_variety", "pitch_variety", "mean_run_length",
+      # Tonality
+      "tonalness", "tonal.clarity", "tonal.spike",
+      # Contour
+      "step.cont.glob.var", "step.cont.glob.dir",
+      # Rhythm / duration
+      "d.entropy", "d.eq.trans", "mean_duration",
+      # General information
+      "target_melody_length", "mean_information_content"
+    ),
+    family = c(
+      rep("Frequency", 4),
+      rep("Entropy", 1),
+      rep("Pitch / Interval", 8),
+      rep("Tonality", 3),
+      rep("Contour", 2),
+      rep("Rhythm / Duration", 3),
+      rep("General Information", 2)
+    )
+  )
+
+  # Remove unwanted features if requested
+  feats <- setdiff(sort(unique(long$feature)), remove_features %||% character())
   feats <- head(feats, min(length(feats), max_plots))
+
   plot_dat <- dplyr::filter(long, feature %in% feats)
 
-  ggplot2::ggplot(plot_dat, ggplot2::aes(x = .bank, y = value, fill = .bank)) +
+  # Join family info
+  plot_dat <- dplyr::left_join(plot_dat, feature_families, by = c("feature"))
+
+  ggplot2::ggplot(
+    plot_dat,
+    ggplot2::aes(x = .bank, y = value, fill = .bank)
+  ) +
     ggplot2::geom_violin(trim = TRUE, alpha = 0.6) +
     ggplot2::geom_boxplot(width = 0.12, outlier.alpha = 0.25) +
-    ggplot2::facet_wrap(~ feature, scales = "free_y") +
+    ggplot2::facet_grid(family ~ feature, scales = "free_y", space = "free_x") +
     ggplot2::labs(
       title = "Feature distributions by bank",
       subtitle = paste0("Showing up to ", length(feats), " features"),
       x = NULL, y = NULL, fill = NULL
     ) +
     ggplot2::theme_minimal(base_size = 12) +
-    ggplot2::theme(legend.position = "bottom")
+    ggplot2::theme(
+      legend.position = "bottom",
+      strip.text.x = ggplot2::element_text(size = 9),
+      strip.text.y = ggplot2::element_text(face = "bold")
+    )
 }
+
+
 
 # ---------- Robust PA/PCA prep & PA (safe) ----------
 
