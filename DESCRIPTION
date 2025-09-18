@@ -28,7 +28,7 @@ Imports:
     stats,
     logging,
     cli
-RoxygenNote: 7.3.2
+RoxygenNote: 7.3.3
 Remotes: 
     pmcharrison/hrep,
     pmcharrison/ppm

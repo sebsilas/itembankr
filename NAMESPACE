@@ -1,6 +1,8 @@
 export("%>%")
+export(analyse_item_bank)
 export(cents)
 export(classify_duration)
+export(compare_item_banks)
 export(compute.entropy)
 export(create_ngram_item_bank)
 export(create_item_bank)
