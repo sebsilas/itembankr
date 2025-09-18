@@ -66,8 +66,8 @@ compare_item_banks <- function(
     item_bank2,
     item_bank_names = c("Bank A", "Bank B"),
     include = NULL,
-    exclude = NULL,
-    id_cols = "item_id",
+    exclude = "ngrukkon",
+    id_cols = c("item_id", "parent_durations", "parent_abs_melody"),
     standardise = TRUE,
     pa_type = c("pc", "fa"),
     max_plots = 36,
@@ -588,7 +588,7 @@ summarise_joint_pcs <- function(prj, n1, item_bank_names, verbose = TRUE) {
   p_pc_density <- ggplot2::ggplot(scj_comp, ggplot2::aes(x = score, color = .bank)) +
     ggplot2::geom_density() +
     ggplot2::facet_wrap(~ component, scales = "free") +
-    ggplot2::labs(title = "Banks compared on joint PCs", x = "Score", y = "Density", color = NULL) +
+    ggplot2::labs(title = "Item Banks Compared on Joint Principal Components", x = "Score", y = "Density", color = NULL) +
     ggplot2::theme_minimal(base_size = 12) +
     ggplot2::theme(legend.position = "bottom")
 
