@@ -110,9 +110,11 @@ compare_item_banks <- function(
   desc_tbl <- summarise_descriptives(long)
   diffs_tbl <- compute_feature_differences(long, item_bank_names)
 
-  # 3) Plots (strip data afterwards)
-  p_violin <- make_violin_plot(long, item_bank_names, max_plots = max_plots)
-  p_violin <- strip_ggplot_data(p_violin)
+  # 3) Violin summaries instead of full plots
+  violin_summary <- make_violin_data(long, item_bank_names, max_plots = max_plots)
+
+  # store a lightweight wrapper function
+  plot_violin <- function() plot_violin_summary(violin_summary)
 
   # 3b) Categorical comparisons
   cats <- prepare_categoricals_both(item_bank1, item_bank2, item_bank_names,
@@ -183,7 +185,10 @@ compare_item_banks <- function(
       proportions = cat_cmp$proportions,
       plot = p_cat
     ),
-    violin_plot = p_violin,
+    violin = list(
+      summary = violin_summary,
+      plot = plot_violin
+    ),
     pa = pa,
     pca = list(
       each = setNames(list(pr1, pr2), item_bank_names),
@@ -310,23 +315,22 @@ compute_feature_differences <- function(long, item_bank_names) {
     dplyr::arrange(dplyr::desc(abs(cohen_d)))
 }
 
-make_violin_plot <- function(long, item_bank_names, max_plots = 36, remove_features = NULL) {
-
-  # Define feature families (with "General Information")
+make_violin_data <- function(long, item_bank_names, max_plots = 36, rescale = TRUE) {
+  # --- Feature → family mapping ---
   feature_families <- tibble::tibble(
     feature = c(
-      # Frequency-related
+      # Frequency
       "freq", "rel_freq", "log_freq", "IDF",
-      # Pitch / interval
-      "span", "mean_int_size", "int_range", "dir_change",
-      "mean_dir_change", "int_variety", "i_entropy", "pitch_variety", "mean_run_length",
+      # Pitch / Interval
+      "span", "mean_int_size", "int_range", "i_entropy", "dir_change",
+      "mean_dir_change", "int_variety", "pitch_variety", "mean_run_length",
       # Tonality
       "tonalness", "tonal_clarity", "tonal_spike",
       # Contour
       "step_cont_glob_var", "step_cont_glob_dir",
-      # Rhythm / duration
+      # Rhythm / Duration
       "d_entropy", "d_eq_trans", "mean_duration",
-      # General information
+      # General Information
       "n", "mean_information_content"
     ),
     family = c(
@@ -339,41 +343,82 @@ make_violin_plot <- function(long, item_bank_names, max_plots = 36, remove_featu
     )
   )
 
-  # Filter features
-  feats <- setdiff(sort(unique(long$feature)), remove_features %||% character())
+  # --- Restrict to selected features ---
+  feats <- sort(unique(long$feature))
   feats <- head(feats, min(length(feats), max_plots))
   plot_dat <- dplyr::filter(long, feature %in% feats)
 
-  # Add family info
-  plot_dat <- dplyr::left_join(plot_dat, feature_families, by = c("feature"))
+  # Add family mapping
+  plot_dat <- dplyr::left_join(plot_dat, feature_families, by = "feature")
 
-  # Drop unmapped features
+  # Drop features without a family assignment
   plot_dat <- dplyr::filter(plot_dat, !is.na(family))
 
-  # Rescale values to [0,1] within each feature
-  plot_dat <- plot_dat %>%
-    dplyr::group_by(feature) %>%
-    dplyr::mutate(value = (value - min(value, na.rm = TRUE)) /
-                    (max(value, na.rm = TRUE) - min(value, na.rm = TRUE))) %>%
-    dplyr::ungroup()
+  # --- Optional rescaling per feature ---
+  if (rescale) {
+    plot_dat <- plot_dat %>%
+      dplyr::group_by(feature) %>%
+      dplyr::mutate(value = (value - min(value, na.rm = TRUE)) /
+                      (max(value, na.rm = TRUE) - min(value, na.rm = TRUE))) %>%
+      dplyr::ungroup()
+  }
 
-  # Make feature a factor restricted to used features
-  plot_dat <- plot_dat %>%
-    dplyr::mutate(feature = factor(feature, levels = unique(feature)))
+  # --- Summarise for boxplots ---
+  box_dat <- plot_dat %>%
+    dplyr::group_by(family, feature, .bank) %>%
+    dplyr::summarise(
+      ymin   = min(value, na.rm = TRUE),
+      lower  = quantile(value, 0.25, na.rm = TRUE),
+      middle = median(value, na.rm = TRUE),
+      upper  = quantile(value, 0.75, na.rm = TRUE),
+      ymax   = max(value, na.rm = TRUE),
+      .groups = "drop"
+    )
 
+  # --- Keep raw rescaled values for violin density ---
+  dens_dat <- plot_dat %>% dplyr::select(family, feature, .bank, value)
+
+  list(
+    box = box_dat,
+    dens = dens_dat,
+    meta = list(
+      n_features = length(feats),
+      item_bank_names = item_bank_names,
+      rescaled = rescale
+    )
+  )
+}
+
+
+plot_violin_summary <- function(summary_data) {
   ggplot2::ggplot(
-    plot_dat,
+    summary_data$dens,
     ggplot2::aes(x = feature, y = value, fill = .bank)
   ) +
-    ggplot2::geom_violin(trim = TRUE, alpha = 0.6,
-                         position = ggplot2::position_dodge(width = 0.8)) +
-    ggplot2::geom_boxplot(width = 0.12, outlier.alpha = 0.25,
-                          position = ggplot2::position_dodge(width = 0.8)) +
+    ggplot2::geom_violin(
+      trim = TRUE, alpha = 0.6,
+      position = ggplot2::position_dodge(width = 0.8)
+    ) +
+    ggplot2::geom_boxplot(
+      data = summary_data$box,
+      ggplot2::aes(
+        x = feature,
+        ymin = ymin, lower = lower, middle = middle,
+        upper = upper, ymax = ymax, fill = .bank
+      ),
+      stat = "identity",
+      inherit.aes = FALSE,   # <- important: don’t inherit y=value
+      width = 0.12,
+      outlier.alpha = 0.25,
+      position = ggplot2::position_dodge(width = 0.8)
+    ) +
     ggplot2::facet_wrap(~ family, scales = "free_x") +
     ggplot2::labs(
-      title = "Feature distributions by bank (rescaled 0–1)",
-      subtitle = paste0("Showing up to ", length(feats), " features"),
-      x = "Feature", y = "Rescaled value (0–1)", fill = "Bank"
+      title = "Feature distributions by bank",
+      subtitle = paste0("Showing up to ", summary_data$meta$n_features, " features"),
+      x = "Feature",
+      y = if (summary_data$meta$rescaled) "Rescaled (0–1)" else NULL,
+      fill = "Bank"
     ) +
     ggplot2::theme_minimal(base_size = 12) +
     ggplot2::theme(
@@ -382,7 +427,6 @@ make_violin_plot <- function(long, item_bank_names, max_plots = 36, remove_featu
       strip.text = ggplot2::element_text(face = "bold")
     )
 }
-
 
 
 
