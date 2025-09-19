@@ -19,16 +19,16 @@
 #' set.seed(123)
 #'
 #'
-#' res <- compare_item_banks(
-#'   item_bank1  = WJD::phrase_item_bank,
-#'   item_bank2  = Berkowitz::phrase_item_bank,
-#'   item_bank_names  = c("WJD", "Berkowitz"),
-#'   standardise = TRUE,
-#'   pa_type     = "pc",
-#'   rotate      = "varimax",
-#'   name_top    = 2,
-#'   verbose     = FALSE
-#' )
+# res <- compare_item_banks(
+#   item_bank1  = WJD::phrase_item_bank,
+#   item_bank2  = Berkowitz::phrase_item_bank,
+#   item_bank_names  = c("WJD", "Berkowitz"),
+#   standardise = TRUE,
+#   pa_type     = "pc",
+#   rotate      = "varimax",
+#   name_top    = 2,
+#   verbose     = FALSE
+# )
 #'
 #' # --- Numeric summaries & differences ---
 #' head(res$descriptives)
@@ -79,6 +79,18 @@ compare_item_banks <- function(
   pa_type <- match.arg(pa_type)
   set.seed(seed)
 
+  # helper to drop heavy plot data
+  strip_ggplot_data <- function(p) {
+    if (inherits(p, "gg")) {
+      p$data <- NULL
+      p$layers <- lapply(p$layers, function(layer) {
+        layer$data <- NULL
+        layer
+      })
+    }
+    p
+  }
+
   if (verbose) {
     cli::cli_h1("Comparing item banks")
     cli::cli_text("{.strong Banks}: {.val {item_bank_names[1]}} vs {.val {item_bank_names[2]}}")
@@ -98,25 +110,24 @@ compare_item_banks <- function(
   desc_tbl <- summarise_descriptives(long)
   diffs_tbl <- compute_feature_differences(long, item_bank_names)
 
-  # 3) Plots
+  # 3) Plots (strip data afterwards)
   p_violin <- make_violin_plot(long, item_bank_names, max_plots = max_plots)
+  p_violin <- strip_ggplot_data(p_violin)
 
   # 3b) Categorical comparisons
   cats <- prepare_categoricals_both(item_bank1, item_bank2, item_bank_names,
                                     include = include, exclude = exclude,
                                     id_cols = id_cols, verbose = verbose)
   cat_long <- cats$long
-
-  cat_cmp <- compare_categoricals_both(cat_long, item_bank_names)
+  cat_cmp  <- compare_categoricals_both(cat_long, item_bank_names)
   cat_tests <- cat_cmp$tests
-  p_cat <- cat_cmp$plot
+  p_cat <- strip_ggplot_data(cat_cmp$plot)
 
   if (verbose && nrow(cat_long) > 0) {
     cli::cli_rule("Categorical comparisons")
     cli::cli_text(cli::col_cyan("Top features by Cramér's V (first 10):"))
     print(dplyr::slice_head(cat_tests, n = 10))
   }
-
 
   # 4) Robust prep for PA/PCA (drop bad cols, impute)
   prep <- prepare_for_components(x1, x2, item_bank_names, max_na_prop = 0.5, verbose = verbose)
@@ -148,9 +159,8 @@ compare_item_banks <- function(
   prj <- run_pca_named(xj_c, k = kj, standardise = standardise, prefix = "Joint PC",
                        impute = "median", rotate = rotate, name_top = name_top)
 
-
   pcs <- summarise_joint_pcs(prj, n1 = nrow(x1_c), item_bank_names = item_bank_names, verbose = verbose)
-  p_pc_density <- pcs$density_plot
+  p_pc_density <- strip_ggplot_data(pcs$density_plot)
   comp_summary <- pcs$summary
 
   # 7) Correlation-structure similarity (use imputed-clean for stable R)
@@ -169,7 +179,6 @@ compare_item_banks <- function(
     descriptives = desc_tbl,
     differences = diffs_tbl,
     categoricals = list(
-      long = cat_long,
       tests = cat_tests,
       proportions = cat_cmp$proportions,
       plot = p_cat
@@ -303,29 +312,26 @@ compute_feature_differences <- function(long, item_bank_names) {
 
 make_violin_plot <- function(long, item_bank_names, max_plots = 36, remove_features = NULL) {
 
-  # Define feature families (with new "General Information")
+  # Define feature families (with "General Information")
   feature_families <- tibble::tibble(
     feature = c(
       # Frequency-related
       "freq", "rel_freq", "log_freq", "IDF",
-      # Melodic / entropy
-      "i.entropy",
       # Pitch / interval
       "span", "mean_int_size", "int_range", "dir_change",
-      "mean_dir_change", "int_variety", "pitch_variety", "mean_run_length",
+      "mean_dir_change", "int_variety", "i_entropy", "pitch_variety", "mean_run_length",
       # Tonality
-      "tonalness", "tonal.clarity", "tonal.spike",
+      "tonalness", "tonal_clarity", "tonal_spike",
       # Contour
-      "step.cont.glob.var", "step.cont.glob.dir",
+      "step_cont_glob_var", "step_cont_glob_dir",
       # Rhythm / duration
-      "d.entropy", "d.eq.trans", "mean_duration",
+      "d_entropy", "d_eq_trans", "mean_duration",
       # General information
-      "target_melody_length", "mean_information_content"
+      "n", "mean_information_content"
     ),
     family = c(
       rep("Frequency", 4),
-      rep("Entropy", 1),
-      rep("Pitch / Interval", 8),
+      rep("Pitch / Interval", 9),
       rep("Tonality", 3),
       rep("Contour", 2),
       rep("Rhythm / Duration", 3),
@@ -333,34 +339,51 @@ make_violin_plot <- function(long, item_bank_names, max_plots = 36, remove_featu
     )
   )
 
-  # Remove unwanted features if requested
+  # Filter features
   feats <- setdiff(sort(unique(long$feature)), remove_features %||% character())
   feats <- head(feats, min(length(feats), max_plots))
-
   plot_dat <- dplyr::filter(long, feature %in% feats)
 
-  # Join family info
+  # Add family info
   plot_dat <- dplyr::left_join(plot_dat, feature_families, by = c("feature"))
+
+  # Drop unmapped features
+  plot_dat <- dplyr::filter(plot_dat, !is.na(family))
+
+  # Rescale values to [0,1] within each feature
+  plot_dat <- plot_dat %>%
+    dplyr::group_by(feature) %>%
+    dplyr::mutate(value = (value - min(value, na.rm = TRUE)) /
+                    (max(value, na.rm = TRUE) - min(value, na.rm = TRUE))) %>%
+    dplyr::ungroup()
+
+  # Make feature a factor restricted to used features
+  plot_dat <- plot_dat %>%
+    dplyr::mutate(feature = factor(feature, levels = unique(feature)))
 
   ggplot2::ggplot(
     plot_dat,
-    ggplot2::aes(x = .bank, y = value, fill = .bank)
+    ggplot2::aes(x = feature, y = value, fill = .bank)
   ) +
-    ggplot2::geom_violin(trim = TRUE, alpha = 0.6) +
-    ggplot2::geom_boxplot(width = 0.12, outlier.alpha = 0.25) +
-    ggplot2::facet_grid(family ~ feature, scales = "free_y", space = "free_x") +
+    ggplot2::geom_violin(trim = TRUE, alpha = 0.6,
+                         position = ggplot2::position_dodge(width = 0.8)) +
+    ggplot2::geom_boxplot(width = 0.12, outlier.alpha = 0.25,
+                          position = ggplot2::position_dodge(width = 0.8)) +
+    ggplot2::facet_wrap(~ family, scales = "free_x") +
     ggplot2::labs(
-      title = "Feature distributions by bank",
+      title = "Feature distributions by bank (rescaled 0–1)",
       subtitle = paste0("Showing up to ", length(feats), " features"),
-      x = NULL, y = NULL, fill = NULL
+      x = "Feature", y = "Rescaled value (0–1)", fill = "Bank"
     ) +
     ggplot2::theme_minimal(base_size = 12) +
     ggplot2::theme(
       legend.position = "bottom",
-      strip.text.x = ggplot2::element_text(size = 9),
-      strip.text.y = ggplot2::element_text(face = "bold")
+      axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
+      strip.text = ggplot2::element_text(face = "bold")
     )
 }
+
+
 
 
 
