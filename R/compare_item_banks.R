@@ -81,23 +81,12 @@ compare_item_banks <- function(
   pa_type <- match.arg(pa_type)
   set.seed(seed)
 
-  strip_ggplot_data <- function(p) {
-    if (inherits(p, "gg")) {
-      p$data <- NULL
-      p$layers <- lapply(p$layers, function(layer) {
-        layer$data <- NULL
-        layer
-      })
-    }
-    p
-  }
-
   if (verbose) {
-    cli::cli_h1("Comparing item banks")
+    cli::cli_h1("Comparing item banks (light)")
     cli::cli_text("{.strong Item Banks}: {.val {item_bank_names[1]}} vs {.val {item_bank_names[2]}}")
   }
 
-  # --- 1) Feature alignment ---
+  # --- 1) Align numeric features ---
   ib <- prepare_item_banks(
     item_bank1, item_bank2,
     include = include, exclude = exclude, id_cols = id_cols,
@@ -106,84 +95,97 @@ compare_item_banks <- function(
   x1 <- ib$x1; x2 <- ib$x2; xjoint <- ib$xjoint
   long <- ib$long
 
-  # --- 2) Descriptive statistics ---
-  if (verbose) cli::cli_rule("Descriptive statistics")
+  # --- 2) Descriptive summaries ---
   desc_tbl <- summarise_descriptives(long)
   diffs_tbl <- compute_feature_differences(long, item_bank_names)
 
-  # --- 3) Lightweight violin summaries ---
-  violin_summary <- make_violin_data_light(long, item_bank_names, max_plots = max_plots)
-  plot_violin <- function() plot_violin_summary_light(violin_summary)
+  # --- 3) Tiny violin summary only (no plot, no densities) ---
+  violin_summary <- long |>
+    dplyr::group_by(feature, .bank) |>
+    dplyr::summarise(
+      ymin = min(value, na.rm = TRUE),
+      lower = quantile(value, 0.25, na.rm = TRUE),
+      middle = median(value, na.rm = TRUE),
+      upper = quantile(value, 0.75, na.rm = TRUE),
+      ymax = max(value, na.rm = TRUE),
+      .groups = "drop"
+    )
 
-  # --- 4) Categorical comparisons (light) ---
+  # --- 4) Categorical comparisons (light summary only) ---
   cats <- prepare_categoricals_both(item_bank1, item_bank2, item_bank_names,
                                     include = include, exclude = exclude,
                                     id_cols = id_cols, verbose = verbose)
   cat_long <- cats$long
-  cat_cmp  <- compare_categoricals_light(cat_long, item_bank_names)
-  cat_tests <- cat_cmp$tests
-  p_cat <- strip_ggplot_data(cat_cmp$plot)
+  cat_tests <- tibble::tibble()
+  if (nrow(cat_long) > 0) {
+    cat_tests <- cat_long |>
+      dplyr::count(feature, .bank, level) |>
+      dplyr::group_by(feature) |>
+      dplyr::summarise(
+        cramers_v = suppressWarnings({
+          tbl <- table(level, .bank)
+          if (all(dim(tbl) >= 2)) {
+            chi2 <- suppressWarnings(stats::chisq.test(tbl, correct = FALSE)$statistic)
+            n <- sum(tbl)
+            k <- min(dim(tbl))
+            sqrt(chi2 / (n * (k - 1)))
+          } else NA_real_
+        }),
+        n_levels = dplyr::n_distinct(level),
+        .groups = "drop"
+      ) |>
+      dplyr::arrange(dplyr::desc(cramers_v))
+  }
 
-  # --- 5) Component prep ---
+  # --- 5) PCA prep (light) ---
   prep <- prepare_for_components(x1, x2, item_bank_names, max_na_prop = 0.5, verbose = verbose)
   x1_c <- prep$x1_clean; x2_c <- prep$x2_clean; xj_c <- prep$xjoint_clean
   x1_i <- prep$x1_imp;   x2_i <- prep$x2_imp;   xj_i <- prep$xjoint_imp
-  if (ncol(x1_c) == 0L) stop("No features left after cleaning; cannot run PA/PCA.")
 
+  if (ncol(x1_c) == 0L) stop("No features left after cleaning; cannot run PA/PCA.")
   scale_if <- function(df) if (standardise) as.data.frame(scale(df)) else df
   x1_pa <- scale_if(x1_i); x2_pa <- scale_if(x2_i); xj_pa <- scale_if(xj_i)
 
-  # --- 6) Parallel analysis ---
   if (verbose) cli::cli_rule("Parallel analysis")
   pa <- run_parallel_analysis(x1_pa, x2_pa, xj_pa,
                               pa_type = pa_type,
                               item_bank_names = item_bank_names,
                               verbose = verbose)
 
-  # --- 7) PCA (light: only loadings + summary, no scores) ---
-  k1 <- min(pa$each[[item_bank_names[1]]]$n, ncol(x1_c), nrow(x1_c) - 1L)
-  k2 <- min(pa$each[[item_bank_names[2]]]$n, ncol(x2_c), nrow(x2_c) - 1L)
   kj <- min(pa$joint$n, ncol(xj_c), nrow(xj_c) - 1L)
-
   prj <- run_pca_named(xj_c, k = kj, standardise = standardise,
                        prefix = "Joint PC", impute = "median",
                        rotate = rotate, name_top = name_top)
-  prj$x <- NULL  # drop huge score matrix
+  prj$x <- NULL  # remove scores completely
 
-  pcs <- summarise_joint_pcs_light(prj, n1 = nrow(x1_c),
-                                   item_bank_names = item_bank_names,
-                                   verbose = verbose)
-  p_pc_density <- strip_ggplot_data(pcs$density_plot)
-  comp_summary <- pcs$summary
+  pcs <- tibble::tibble(
+    component = colnames(prj$rotation),
+    mean_abs_loading = apply(abs(prj$rotation), 2, mean, na.rm = TRUE)
+  )
 
-  # --- 8) Correlation similarity ---
-  if (verbose) cli::cli_rule("Correlation similarity")
+  # --- 6) Correlation similarity ---
   mantel_res <- mantel_similarity(x1_imp = x1_i, x2_imp = x2_i, verbose = verbose)
 
-  # --- 9) Return lightweight object ---
-  list(
+  # --- 7) Return ultra-light object ---
+  out <- list(
     banks = item_bank_names,
     features_overlap = ib$feature_map,
     dropped_for_components = prep$dropped_features,
     kept_for_components = prep$kept_features,
     descriptives = desc_tbl,
     differences = diffs_tbl,
-    categoricals = list(
-      tests = cat_tests,
-      plot = p_cat
-    ),
-    violin = list(
-      summary = violin_summary$box,
-      plot = plot_violin
-    ),
+    categoricals = list(tests = cat_tests),
+    violin = list(summary = violin_summary),
     pa = pa,
     pca = list(
-      joint = list(rotation = prj$rotation),
-      joint_score_summary = comp_summary,
-      joint_density_plot = p_pc_density
+      joint_loadings = prj$rotation,
+      joint_summary = pcs
     ),
     extras = list(mantel = mantel_res)
   )
+
+  class(out) <- c("itembank_compare_light", class(out))
+  invisible(out)
 }
 
 # ------------------------------------------------------------------
