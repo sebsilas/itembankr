@@ -63,6 +63,32 @@
 #' @export
 #' Compare two item banks (music corpora) by feature distributions and components (lightweight)
 #' @export
+#' Compare two item banks (music corpora) — lightweight version
+#'
+#' This version keeps only summaries, not raw data or full ggplot objects.
+#' It's designed to be safely saved to disk (small file size).
+#'
+#' @export
+#' Compare two item banks (music corpora)
+#'
+#' Compares two item banks by numeric feature distributions, categorical feature
+#' differences, and component structure. Keeps compact summaries for efficient
+#' storage and reproducibility.
+#'
+#' @param item_bank1,item_bank2 Data frames containing feature columns.
+#' @param item_bank_names Character vector of length 2 naming the item banks.
+#' @param include,exclude Optional tidyselect/character filters for features.
+#' @param id_cols Character vector of columns to exclude from feature analysis.
+#' @param standardise Logical; whether to scale/center features before PCA/PA.
+#' @param pa_type "pc" or "fa" for type of parallel analysis.
+#' @param max_plots Maximum number of features to include in violin summaries.
+#' @param seed RNG seed for reproducibility.
+#' @param verbose Print progress.
+#' @param rotate Rotation method for `psych::principal()`.
+#' @param name_top Number of top-loading features per component in labels.
+#' @return A list with descriptive summaries, categorical tests, component
+#' summaries, and feature distribution summaries (no raw data).
+#' @export
 compare_item_banks <- function(
     item_bank1,
     item_bank2,
@@ -82,36 +108,64 @@ compare_item_banks <- function(
   set.seed(seed)
 
   if (verbose) {
-    cli::cli_h1("Comparing item banks (light)")
-    cli::cli_text("{.strong Item Banks}: {.val {item_bank_names[1]}} vs {.val {item_bank_names[2]}}")
+    cli::cli_h1("Comparing item banks")
+    cli::cli_text("{.strong Item banks}: {.val {item_bank_names[1]}} vs {.val {item_bank_names[2]}}")
   }
 
-  # --- 1) Align numeric features ---
+  # --- 1) Align numeric features
   ib <- prepare_item_banks(
     item_bank1, item_bank2,
     include = include, exclude = exclude, id_cols = id_cols,
     item_bank_names = item_bank_names, verbose = verbose
   )
-  x1 <- ib$x1; x2 <- ib$x2; xjoint <- ib$xjoint
-  long <- ib$long
+  x1 <- ib$x1; x2 <- ib$x2; long <- ib$long
 
-  # --- 2) Descriptive summaries ---
+  # --- 2) Descriptive summaries
   desc_tbl <- summarise_descriptives(long)
   diffs_tbl <- compute_feature_differences(long, item_bank_names)
 
-  # --- 3) Tiny violin summary only (no plot, no densities) ---
+  # --- 3) Feature-family mapping
+  feature_families <- tibble::tibble(
+    feature = c(
+      # Frequency
+      "freq", "rel_freq", "log_freq", "idf",
+      # Pitch / Interval
+      "span", "mean_int_size", "int_range", "i_entropy", "dir_change",
+      "mean_dir_change", "int_variety", "pitch_variety", "mean_run_length",
+      # Tonality
+      "tonalness", "tonal_clarity", "tonal_spike",
+      # Contour
+      "step_cont_glob_var", "step_cont_glob_dir",
+      # Rhythm / Duration
+      "d_entropy", "d_eq_trans", "mean_duration",
+      # General Information
+      "n", "mean_information_content"
+    ),
+    family = c(
+      rep("Frequency", 4),
+      rep("Pitch / Interval", 9),
+      rep("Tonality", 3),
+      rep("Contour", 2),
+      rep("Rhythm / Duration", 3),
+      rep("General Information", 2)
+    )
+  )
+
+  # --- 4) Compact violin summary (per family + item bank)
   violin_summary <- long |>
-    dplyr::group_by(feature, .bank) |>
+    dplyr::left_join(feature_families, by = "feature") |>
+    dplyr::mutate(family = tidyr::replace_na(family, "Other")) |>
+    dplyr::group_by(family, feature, .item_bank = .bank) |>
     dplyr::summarise(
-      ymin = min(value, na.rm = TRUE),
-      lower = quantile(value, 0.25, na.rm = TRUE),
+      ymin   = min(value, na.rm = TRUE),
+      lower  = quantile(value, 0.25, na.rm = TRUE),
       middle = median(value, na.rm = TRUE),
-      upper = quantile(value, 0.75, na.rm = TRUE),
-      ymax = max(value, na.rm = TRUE),
+      upper  = quantile(value, 0.75, na.rm = TRUE),
+      ymax   = max(value, na.rm = TRUE),
       .groups = "drop"
     )
 
-  # --- 4) Categorical comparisons (light summary only) ---
+  # --- 5) Categorical summaries (Cramér’s V only)
   cats <- prepare_categoricals_both(item_bank1, item_bank2, item_bank_names,
                                     include = include, exclude = exclude,
                                     id_cols = id_cols, verbose = verbose)
@@ -119,11 +173,11 @@ compare_item_banks <- function(
   cat_tests <- tibble::tibble()
   if (nrow(cat_long) > 0) {
     cat_tests <- cat_long |>
-      dplyr::count(feature, .bank, level) |>
+      dplyr::count(feature, .item_bank = .bank, level) |>
       dplyr::group_by(feature) |>
       dplyr::summarise(
         cramers_v = suppressWarnings({
-          tbl <- table(level, .bank)
+          tbl <- table(level, .item_bank)
           if (all(dim(tbl) >= 2)) {
             chi2 <- suppressWarnings(stats::chisq.test(tbl, correct = FALSE)$statistic)
             n <- sum(tbl)
@@ -137,12 +191,9 @@ compare_item_banks <- function(
       dplyr::arrange(dplyr::desc(cramers_v))
   }
 
-  # --- 5) PCA prep (light) ---
+  # --- 6) Component prep (PCA summary only)
   prep <- prepare_for_components(x1, x2, item_bank_names, max_na_prop = 0.5, verbose = verbose)
-  x1_c <- prep$x1_clean; x2_c <- prep$x2_clean; xj_c <- prep$xjoint_clean
-  x1_i <- prep$x1_imp;   x2_i <- prep$x2_imp;   xj_i <- prep$xjoint_imp
-
-  if (ncol(x1_c) == 0L) stop("No features left after cleaning; cannot run PA/PCA.")
+  x1_i <- prep$x1_imp; x2_i <- prep$x2_imp; xj_i <- prep$xjoint_imp
   scale_if <- function(df) if (standardise) as.data.frame(scale(df)) else df
   x1_pa <- scale_if(x1_i); x2_pa <- scale_if(x2_i); xj_pa <- scale_if(xj_i)
 
@@ -152,23 +203,23 @@ compare_item_banks <- function(
                               item_bank_names = item_bank_names,
                               verbose = verbose)
 
-  kj <- min(pa$joint$n, ncol(xj_c), nrow(xj_c) - 1L)
-  prj <- run_pca_named(xj_c, k = kj, standardise = standardise,
+  kj <- min(pa$joint$n, ncol(xj_pa), nrow(xj_pa) - 1L)
+  prj <- run_pca_named(xj_pa, k = kj, standardise = FALSE,
                        prefix = "Joint PC", impute = "median",
                        rotate = rotate, name_top = name_top)
-  prj$x <- NULL  # remove scores completely
+  prj$x <- NULL  # remove scores to stay small
 
   pcs <- tibble::tibble(
     component = colnames(prj$rotation),
     mean_abs_loading = apply(abs(prj$rotation), 2, mean, na.rm = TRUE)
   )
 
-  # --- 6) Correlation similarity ---
+  # --- 7) Correlation structure similarity
   mantel_res <- mantel_similarity(x1_imp = x1_i, x2_imp = x2_i, verbose = verbose)
 
-  # --- 7) Return ultra-light object ---
+  # --- 8) Return compact object
   out <- list(
-    banks = item_bank_names,
+    item_banks = item_bank_names,
     features_overlap = ib$feature_map,
     dropped_for_components = prep$dropped_features,
     kept_for_components = prep$kept_features,
@@ -184,58 +235,11 @@ compare_item_banks <- function(
     extras = list(mantel = mantel_res)
   )
 
-  class(out) <- c("itembank_compare_light", class(out))
+  class(out) <- c("itembank_compare", class(out))
   invisible(out)
 }
 
-# ------------------------------------------------------------------
-# Lightweight violin summaries: quantiles + pre-binned densities only
-# ------------------------------------------------------------------
-make_violin_data_light <- function(long, item_bank_names, max_plots = 36, rescale = TRUE, bins = 40) {
-  feats <- head(sort(unique(long$feature)), max_plots)
-  plot_dat <- dplyr::filter(long, feature %in% feats)
-  if (rescale) {
-    plot_dat <- plot_dat |>
-      dplyr::group_by(feature) |>
-      dplyr::mutate(value = (value - min(value, na.rm = TRUE)) /
-                      (max(value, na.rm = TRUE) - min(value, na.rm = TRUE))) |>
-      dplyr::ungroup()
-  }
 
-  # summarize quartiles
-  box_dat <- plot_dat |>
-    dplyr::group_by(feature, .bank) |>
-    dplyr::summarise(
-      ymin = min(value, na.rm = TRUE),
-      lower = quantile(value, 0.25, na.rm = TRUE),
-      middle = median(value, na.rm = TRUE),
-      upper = quantile(value, 0.75, na.rm = TRUE),
-      ymax = max(value, na.rm = TRUE),
-      .groups = "drop"
-    )
-
-  # pre-binned densities
-  dens_dat <- plot_dat |>
-    dplyr::group_by(feature, .bank) |>
-    dplyr::summarise({
-      d <- stats::density(value, n = bins, na.rm = TRUE)
-      tibble::tibble(x = d$x, y = d$y)
-    }, .groups = "drop") |>
-    tidyr::unnest(cols = c(x, y))
-
-  list(box = box_dat, dens = dens_dat)
-}
-
-plot_violin_summary_light <- function(summary_data) {
-  ggplot2::ggplot(summary_data$dens,
-                  ggplot2::aes(x = x, y = y, color = .bank)) +
-    ggplot2::geom_line(size = 0.6) +
-    ggplot2::facet_wrap(~ feature, scales = "free_y") +
-    ggplot2::labs(title = "Feature distributions by bank (light)",
-                  x = "Rescaled value (0–1)", y = "Density") +
-    ggplot2::theme_minimal(base_size = 11) +
-    ggplot2::theme(legend.position = "bottom")
-}
 
 # ------------------------------------------------------------------
 # Lightweight categorical comparison
@@ -501,44 +505,38 @@ make_violin_data <- function(long, item_bank_names, max_plots = 36, rescale = TR
 }
 
 
-plot_violin_summary <- function(summary_data) {
-  ggplot2::ggplot(
-    summary_data$dens,
-    ggplot2::aes(x = feature, y = value, fill = .bank)
-  ) +
-    ggplot2::geom_violin(
-      trim = TRUE, alpha = 0.6,
-      position = ggplot2::position_dodge(width = 0.8)
-    ) +
+#' Plot feature summaries by item bank and family
+#' @export
+plot_violin_summary <- function(summary_data, max_features = 36) {
+  if (nrow(summary_data) == 0L) {
+    cli::cli_alert_warning("No feature data available for plotting.")
+    return(ggplot2::ggplot() + ggplot2::labs(title = "No data"))
+  }
+
+  feats <- unique(summary_data$feature)
+  if (length(feats) > max_features)
+    summary_data <- dplyr::filter(summary_data, feature %in% head(feats, max_features))
+
+  ggplot2::ggplot(summary_data, ggplot2::aes(x = feature, y = middle, fill = .item_bank)) +
     ggplot2::geom_boxplot(
-      data = summary_data$box,
       ggplot2::aes(
-        x = feature,
         ymin = ymin, lower = lower, middle = middle,
-        upper = upper, ymax = ymax, fill = .bank
+        upper = upper, ymax = ymax
       ),
-      stat = "identity",
-      inherit.aes = FALSE,   # <- important: don’t inherit y=value
-      width = 0.12,
-      outlier.alpha = 0.25,
-      position = ggplot2::position_dodge(width = 0.8)
+      stat = "identity", width = 0.4, alpha = 0.7
     ) +
-    ggplot2::facet_wrap(~ family, scales = "free_x") +
+    ggplot2::facet_wrap(~ family, scales = "free") +
     ggplot2::labs(
-      title = "Feature distributions by bank",
-      subtitle = paste0("Showing up to ", summary_data$meta$n_features, " features"),
-      x = "Feature",
-      y = if (summary_data$meta$rescaled) "Rescaled (0–1)" else NULL,
-      fill = "Bank"
+      title = "Feature distributions by item bank",
+      x = NULL, y = "Median ± IQR", fill = "Item bank"
     ) +
-    ggplot2::theme_minimal(base_size = 12) +
+    ggplot2::theme_minimal(base_size = 11) +
     ggplot2::theme(
-      legend.position = "bottom",
       axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
+      legend.position = "bottom",
       strip.text = ggplot2::element_text(face = "bold")
     )
 }
-
 
 
 
