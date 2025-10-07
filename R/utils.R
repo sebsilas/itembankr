@@ -605,7 +605,12 @@ hist_item_bank <- function(item_bank, nrow = NULL, ncol = NULL) {
 }
 
 try_or_log_error_return_na <- function(exp) {
-  tryCatch({ exp }, error = function(err) { logging::logerror(err) })
+  tryCatch({
+    exp
+  }, error = function(err) {
+    logging::logerror(err)
+    return(NA)
+  })
 }
 
 
