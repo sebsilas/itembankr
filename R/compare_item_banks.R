@@ -505,8 +505,16 @@ make_violin_data <- function(long, item_bank_names, max_plots = 36, rescale = TR
 }
 
 
+
 #' Plot feature summaries by item bank and family
+#'
+#' @param summary_data
+#' @param max_features
+#'
+#' @returns
 #' @export
+#'
+#' @examples
 plot_violin_summary <- function(summary_data, max_features = 36) {
   if (nrow(summary_data) == 0L) {
     cli::cli_alert_warning("No feature data available for plotting.")

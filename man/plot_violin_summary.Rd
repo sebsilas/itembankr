@@ -6,6 +6,9 @@
 \usage{
 plot_violin_summary(summary_data, max_features = 36)
 }
+\arguments{
+\item{max_features}{}
+}
 \description{
 Plot feature summaries by item bank and family
 }
