@@ -43,7 +43,7 @@
 #' res$pca$joint_score_summary
 #'
 #' # --- Categorical outputs ---
-#' # Long rows (feature, .bank, level)
+#' # Long rows (feature, .item_bank, level)
 #' res$categoricals$long |> dplyr::distinct(feature) |> dplyr::arrange(feature)
 #' # Tests per feature (chi-square/Fisher, Cramér's V, JS divergence)
 #' res$categoricals$tests |>
@@ -60,34 +60,6 @@
 #' }
 #'
 #'
-#' @export
-#' Compare two item banks (music corpora) by feature distributions and components (lightweight)
-#' @export
-#' Compare two item banks (music corpora) — lightweight version
-#'
-#' This version keeps only summaries, not raw data or full ggplot objects.
-#' It's designed to be safely saved to disk (small file size).
-#'
-#' @export
-#' Compare two item banks (music corpora)
-#'
-#' Compares two item banks by numeric feature distributions, categorical feature
-#' differences, and component structure. Keeps compact summaries for efficient
-#' storage and reproducibility.
-#'
-#' @param item_bank1,item_bank2 Data frames containing feature columns.
-#' @param item_bank_names Character vector of length 2 naming the item banks.
-#' @param include,exclude Optional tidyselect/character filters for features.
-#' @param id_cols Character vector of columns to exclude from feature analysis.
-#' @param standardise Logical; whether to scale/center features before PCA/PA.
-#' @param pa_type "pc" or "fa" for type of parallel analysis.
-#' @param max_plots Maximum number of features to include in violin summaries.
-#' @param seed RNG seed for reproducibility.
-#' @param verbose Print progress.
-#' @param rotate Rotation method for `psych::principal()`.
-#' @param name_top Number of top-loading features per component in labels.
-#' @return A list with descriptive summaries, categorical tests, component
-#' summaries, and feature distribution summaries (no raw data).
 #' @export
 compare_item_banks <- function(
     item_bank1,
@@ -155,7 +127,7 @@ compare_item_banks <- function(
   violin_summary <- long |>
     dplyr::left_join(feature_families, by = "feature") |>
     dplyr::mutate(family = tidyr::replace_na(family, "Other")) |>
-    dplyr::group_by(family, feature, .item_bank = .bank) |>
+    dplyr::group_by(family, feature, .item_bank = .item_bank) |>
     dplyr::summarise(
       ymin   = min(value, na.rm = TRUE),
       lower  = quantile(value, 0.25, na.rm = TRUE),
@@ -165,33 +137,106 @@ compare_item_banks <- function(
       .groups = "drop"
     )
 
-  # --- 5) Categorical summaries (Cramér’s V only)
+  # --- 5) Categorical summaries (Cramér’s V, JS divergence, and proportion plot) ---
   cats <- prepare_categoricals_both(item_bank1, item_bank2, item_bank_names,
                                     include = include, exclude = exclude,
                                     id_cols = id_cols, verbose = verbose)
   cat_long <- cats$long
+
   cat_tests <- tibble::tibble()
+  cat_plot <- ggplot2::ggplot()
+  cat_proportions <- tibble::tibble()
+
   if (nrow(cat_long) > 0) {
-    cat_tests <- cat_long |>
-      dplyr::count(feature, .item_bank = .bank, level) |>
+    # Count levels
+    cnt <- cat_long |>
+      dplyr::count(feature, .item_bank = .item_bank, level, name = "n")
+
+    # Proportion table (for plotting and JS divergence)
+    prop_tbl <- cnt |>
+      dplyr::group_by(feature, .item_bank) |>
+      dplyr::mutate(prop = n / sum(n)) |>
+      dplyr::ungroup()
+
+    # Helper: Jensen–Shannon divergence
+    js_div <- function(p, q) {
+      support <- union(names(p), names(q))
+      p <- p[support]; q <- q[support]
+      p[is.na(p)] <- 0; q[is.na(q)] <- 0
+      m <- 0.5 * (p + q)
+      kl <- function(a, b) { idx <- a > 0; sum(a[idx] * log(a[idx] / b[idx])) }
+      0.5 * kl(p, m) + 0.5 * kl(q, m)
+    }
+
+    # Compute tests per feature
+    cat_tests <- cnt |>
       dplyr::group_by(feature) |>
-      dplyr::summarise(
-        cramers_v = suppressWarnings({
-          tbl <- table(level, .item_bank)
-          if (all(dim(tbl) >= 2)) {
-            chi2 <- suppressWarnings(stats::chisq.test(tbl, correct = FALSE)$statistic)
-            n <- sum(tbl)
-            k <- min(dim(tbl))
-            sqrt(chi2 / (n * (k - 1)))
-          } else NA_real_
-        }),
-        n_levels = dplyr::n_distinct(level),
-        .groups = "drop"
-      ) |>
+      dplyr::group_map(~{
+        fname <- .y$feature[[1]]
+        w_n <- dplyr::filter(cnt, feature == fname) |>
+          tidyr::pivot_wider(names_from = .item_bank, values_from = n, values_fill = 0)
+        if (length(item_bank_names) < 2) return(NULL)
+        for (missing_col in setdiff(item_bank_names, names(w_n)))
+          w_n[[missing_col]] <- 0L
+        w_n <- w_n[, c("level", item_bank_names), drop = FALSE]
+
+        mat <- as.matrix(w_n[item_bank_names])
+        rownames(mat) <- w_n$level
+        n_tot <- sum(mat)
+
+        # Fisher if small cells
+        htest <- tryCatch({
+          if (any(mat < 5)) stats::fisher.test(mat) else stats::chisq.test(mat)
+        }, error = function(e) NULL)
+
+        chi <- if (!is.null(htest$statistic)) as.numeric(htest$statistic) else NA_real_
+        df  <- if (!is.null(htest$parameter)) as.integer(htest$parameter) else NA_integer_
+        pv  <- if (!is.null(htest$p.value))   as.numeric(htest$p.value)   else NA_real_
+
+        denom <- n_tot * (min(max(nrow(mat) - 1, 0L), max(ncol(mat) - 1, 0L)))
+        v <- if (!is.na(chi) && denom > 0) sqrt(chi / denom) else NA_real_
+
+        # Proportions for JS divergence
+        w_p <- dplyr::filter(prop_tbl, feature == fname) |>
+          tidyr::pivot_wider(names_from = .item_bank, values_from = prop, values_fill = 0)
+        for (missing_col in setdiff(item_bank_names, names(w_p)))
+          w_p[[missing_col]] <- 0
+        w_p <- w_p[, c("level", item_bank_names), drop = FALSE]
+        p1 <- stats::setNames(w_p[[item_bank_names[1]]], w_p$level)
+        p2 <- stats::setNames(w_p[[item_bank_names[2]]], w_p$level)
+        js <- js_div(p1, p2)
+
+        tibble::tibble(feature = fname,
+                       test = if (inherits(htest, "htest")) htest$method else NA_character_,
+                       statistic = chi, df = df, p_value = pv,
+                       cramers_v = v, js_divergence = js)
+      }) |>
+      dplyr::bind_rows() |>
       dplyr::arrange(dplyr::desc(cramers_v))
+
+    # Compact categorical proportion plot
+    plot_tbl <- prop_tbl |>
+      dplyr::group_by(feature) |>
+      dplyr::mutate(rank = dplyr::min_rank(dplyr::desc(n))) |>
+      dplyr::mutate(level_plot = ifelse(rank <= 10, level, "Other")) |>
+      dplyr::group_by(feature, .item_bank, level_plot) |>
+      dplyr::summarise(n = sum(n), .groups = "drop") |>
+      dplyr::group_by(feature, .item_bank) |>
+      dplyr::mutate(prop = n / sum(n)) |>
+      dplyr::ungroup()
+
+    cat_plot <- ggplot2::ggplot(plot_tbl, ggplot2::aes(x = .item_bank, y = prop, fill = level_plot)) +
+      ggplot2::geom_col(position = "fill") +
+      ggplot2::facet_wrap(~ feature, scales = "free_y") +
+      ggplot2::labs(title = "Categorical features by item bank",
+                    x = NULL, y = "Proportion", fill = "Level") +
+      ggplot2::theme_minimal(base_size = 12) +
+      ggplot2::theme(legend.position = "bottom")
+
+    cat_proportions <- prop_tbl
   }
 
-  # --- 6) Component prep (PCA summary only)
+  # --- 6) PCA section (re-add joint summaries and density plot)
   prep <- prepare_for_components(x1, x2, item_bank_names, max_na_prop = 0.5, verbose = verbose)
   x1_i <- prep$x1_imp; x2_i <- prep$x2_imp; xj_i <- prep$xjoint_imp
   scale_if <- function(df) if (standardise) as.data.frame(scale(df)) else df
@@ -207,17 +252,13 @@ compare_item_banks <- function(
   prj <- run_pca_named(xj_pa, k = kj, standardise = FALSE,
                        prefix = "Joint PC", impute = "median",
                        rotate = rotate, name_top = name_top)
-  prj$x <- NULL  # remove scores to stay small
 
-  pcs <- tibble::tibble(
-    component = colnames(prj$rotation),
-    mean_abs_loading = apply(abs(prj$rotation), 2, mean, na.rm = TRUE)
-  )
+  pcs <- summarise_joint_pcs(prj, n1 = nrow(x1_pa), item_bank_names = item_bank_names, verbose = verbose)
 
-  # --- 7) Correlation structure similarity
+  # --- 7) Mantel similarity
   mantel_res <- mantel_similarity(x1_imp = x1_i, x2_imp = x2_i, verbose = verbose)
 
-  # --- 8) Return compact object
+  # --- 8) Return final object
   out <- list(
     item_banks = item_bank_names,
     features_overlap = ib$feature_map,
@@ -225,12 +266,17 @@ compare_item_banks <- function(
     kept_for_components = prep$kept_features,
     descriptives = desc_tbl,
     differences = diffs_tbl,
-    categoricals = list(tests = cat_tests),
+    categoricals = list(
+      tests = cat_tests,
+      proportions = cat_proportions,
+      plot = cat_plot
+    ),
     violin = list(summary = violin_summary),
     pa = pa,
     pca = list(
-      joint_loadings = prj$rotation,
-      joint_summary = pcs
+      joint = prj,
+      joint_score_summary = pcs$summary,
+      joint_density_plot = pcs$density_plot
     ),
     extras = list(mantel = mantel_res)
   )
@@ -240,81 +286,6 @@ compare_item_banks <- function(
 }
 
 
-
-# ------------------------------------------------------------------
-# Lightweight categorical comparison
-# ------------------------------------------------------------------
-compare_categoricals_light <- function(long_cat, item_bank_names) {
-  if (is.null(long_cat) || nrow(long_cat) == 0L) {
-    return(list(tests = tibble::tibble(), plot = ggplot2::ggplot()))
-  }
-
-  # --- helper: Cramér's V computation ---
-  cramer_v <- function(tbl) {
-    if (any(dim(tbl) < 2)) return(NA_real_)
-    chi2 <- suppressWarnings(stats::chisq.test(tbl, correct = FALSE)$statistic)
-    n <- sum(tbl)
-    k <- min(dim(tbl))
-    sqrt(chi2 / (n * (k - 1)))
-  }
-
-  cnt <- long_cat |> dplyr::count(feature, .bank, level)
-  prop_tbl <- cnt |>
-    dplyr::group_by(feature, .bank) |>
-    dplyr::mutate(prop = n / sum(n)) |>
-    dplyr::ungroup()
-
-  tests <- cnt |>
-    dplyr::group_by(feature) |>
-    dplyr::summarise(
-      cramers_v = cramer_v(table(level, .bank)),
-      n_levels = dplyr::n_distinct(level),
-      .groups = "drop"
-    ) |>
-    dplyr::arrange(dplyr::desc(cramers_v))
-
-  plot_tbl <- prop_tbl |>
-    dplyr::group_by(feature, .bank) |>
-    dplyr::slice_max(n, n = 10) |>
-    dplyr::ungroup()
-
-  p <- ggplot2::ggplot(plot_tbl,
-                       ggplot2::aes(x = .bank, y = prop, fill = level)) +
-    ggplot2::geom_col(position = "fill") +
-    ggplot2::facet_wrap(~ feature, scales = "free_y") +
-    ggplot2::labs(title = "Categorical features by bank (light)",
-                  x = NULL, y = "Proportion", fill = "Level") +
-    ggplot2::theme_minimal(base_size = 11) +
-    ggplot2::theme(legend.position = "bottom")
-
-  list(tests = tests, plot = p)
-}
-
-# ------------------------------------------------------------------
-# Lightweight PCA summary
-# ------------------------------------------------------------------
-summarise_joint_pcs_light <- function(prj, n1, item_bank_names, verbose = TRUE) {
-  if (is.null(prj$rotation) || ncol(prj$rotation) == 0) {
-    return(list(summary = tibble::tibble(), density_plot = ggplot2::ggplot()))
-  }
-
-  load_df <- as.data.frame(prj$rotation)
-  load_summary <- tibble::tibble(
-    component = names(load_df),
-    n_features = nrow(prj$rotation),
-    mean_abs_loading = apply(abs(prj$rotation), 2, mean)
-  )
-
-  dens_plot <- ggplot2::ggplot(load_summary,
-                               ggplot2::aes(x = component, y = mean_abs_loading)) +
-    ggplot2::geom_col(fill = "steelblue") +
-    ggplot2::coord_flip() +
-    ggplot2::labs(title = "Mean absolute loadings per component (light)",
-                  x = NULL, y = "Mean |loading|") +
-    ggplot2::theme_minimal(base_size = 11)
-
-  list(summary = load_summary, density_plot = dens_plot)
-}
 
 
 # ---------------------------- helpers ----------------------------
@@ -361,8 +332,8 @@ prepare_item_banks <- function(item_bank1, item_bank2,
     cli::cli_text("{.strong Overlap used}: {length(common)} features")
   }
 
-  df1 <- tibble::as_tibble(ib1[, common, drop = FALSE]) |> dplyr::mutate(.bank = item_bank_names[1])
-  df2 <- tibble::as_tibble(ib2[, common, drop = FALSE]) |> dplyr::mutate(.bank = item_bank_names[2])
+  df1 <- tibble::as_tibble(ib1[, common, drop = FALSE]) |> dplyr::mutate(.item_bank = item_bank_names[1])
+  df2 <- tibble::as_tibble(ib2[, common, drop = FALSE]) |> dplyr::mutate(.item_bank = item_bank_names[2])
   long <- dplyr::bind_rows(df1, df2) |>
     tidyr::pivot_longer(cols = dplyr::all_of(common), names_to = "feature", values_to = "value")
 
@@ -387,7 +358,7 @@ prepare_item_banks <- function(item_bank1, item_bank2,
 
 summarise_descriptives <- function(long) {
   long |>
-    dplyr::group_by(.bank, feature) |>
+    dplyr::group_by(.item_bank, feature) |>
     dplyr::summarise(
       n      = dplyr::n(),
       mean   = mean(value, na.rm = TRUE),
@@ -408,8 +379,8 @@ compute_feature_differences <- function(long, item_bank_names) {
   }
 
   purrr::map_dfr(unique(long$feature), function(f) {
-    x <- long$value[long$feature == f & long$.bank == item_bank_names[1]]
-    y <- long$value[long$feature == f & long$.bank == item_bank_names[2]]
+    x <- long$value[long$feature == f & long$.item_bank == item_bank_names[1]]
+    y <- long$value[long$feature == f & long$.item_bank == item_bank_names[2]]
     pd <- pooled_sd(x, y)
     d  <- (mean(x, na.rm = TRUE) - mean(y, na.rm = TRUE)) / pd
     ks_p <- tryCatch(stats::ks.test(x, y)$p.value, error = function(e) NA_real_)
@@ -480,7 +451,7 @@ make_violin_data <- function(long, item_bank_names, max_plots = 36, rescale = TR
 
   # --- Summarise for boxplots ---
   box_dat <- plot_dat %>%
-    dplyr::group_by(family, feature, .bank) %>%
+    dplyr::group_by(family, feature, .item_bank) %>%
     dplyr::summarise(
       ymin   = min(value, na.rm = TRUE),
       lower  = quantile(value, 0.25, na.rm = TRUE),
@@ -491,7 +462,7 @@ make_violin_data <- function(long, item_bank_names, max_plots = 36, rescale = TR
     )
 
   # --- Keep raw rescaled values for violin density ---
-  dens_dat <- plot_dat %>% dplyr::select(family, feature, .bank, value)
+  dens_dat <- plot_dat %>% dplyr::select(family, feature, .item_bank, value)
 
   list(
     box = box_dat,
@@ -751,13 +722,13 @@ summarise_joint_pcs <- function(prj, n1, item_bank_names, verbose = TRUE) {
   }
 
   scj_comp <- dplyr::bind_cols(
-    tibble::tibble(.bank = c(rep(item_bank_names[1], n1), rep(item_bank_names[2], nrow(scores) - n1))),
+    tibble::tibble(.item_bank = c(rep(item_bank_names[1], n1), rep(item_bank_names[2], nrow(scores) - n1))),
     scores
   ) |>
-    tidyr::pivot_longer(-.bank, names_to = "component", values_to = "score")
+    tidyr::pivot_longer(-.item_bank, names_to = "component", values_to = "score")
 
   comp_summary <- scj_comp |>
-    dplyr::group_by(.bank, component) |>
+    dplyr::group_by(.item_bank, component) |>
     dplyr::summarise(
       n = dplyr::n(),
       mean = mean(score, na.rm = TRUE),
@@ -765,11 +736,11 @@ summarise_joint_pcs <- function(prj, n1, item_bank_names, verbose = TRUE) {
       median = stats::median(score, na.rm = TRUE),
       .groups = "drop"
     ) |>
-    tidyr::pivot_wider(names_from = .bank, values_from = c(n, mean, sd, median))
+    tidyr::pivot_wider(names_from = .item_bank, values_from = c(n, mean, sd, median))
 
   if (verbose) cli::cli_alert_success("Joint PC summaries computed.")
 
-  p_pc_density <- ggplot2::ggplot(scj_comp, ggplot2::aes(x = score, color = .bank)) +
+  p_pc_density <- ggplot2::ggplot(scj_comp, ggplot2::aes(x = score, color = .item_bank)) +
     ggplot2::geom_density() +
     ggplot2::facet_wrap(~ component, scales = "free") +
     ggplot2::labs(title = "Item Banks Compared on Joint Principal Components", x = "Score", y = "Density", color = NULL) +
@@ -805,11 +776,10 @@ print_tables_cli <- function(desc_tbl, diffs_tbl, comp_summary) {
 
 
 
-# TWO-bank categorical comparison: chi-square/Fisher, Cramér's V, JS divergence (robust)
 # TWO-bank categorical comparison: chi-square/Fisher, Cramér's V, JS divergence
 compare_categoricals_both <- function(long_cat, item_bank_names) {
   # Always exclude these categorical features
-  always_exclude <- c("abs_melody", "durations", "item_type", "melody")
+  always_exclude <- c("abs_melody", "durations", "item_type", "melody", "parent_abs_melody", "parent_durations")
 
   # Filter them out right away
   if (!is.null(long_cat) && nrow(long_cat) > 0 && "feature" %in% names(long_cat)) {
@@ -822,10 +792,10 @@ compare_categoricals_both <- function(long_cat, item_bank_names) {
 
   # counts and within-bank proportions
   cnt <- long_cat |>
-    dplyr::count(feature, .bank, level, name = "n")
+    dplyr::count(feature, .item_bank, level, name = "n")
 
   prop_tbl <- cnt |>
-    dplyr::group_by(feature, .bank) |>
+    dplyr::group_by(feature, .item_bank) |>
     dplyr::mutate(prop = n / sum(n)) |>
     dplyr::ungroup()
 
@@ -846,7 +816,7 @@ compare_categoricals_both <- function(long_cat, item_bank_names) {
 
       # --- counts wide: ensure both bank columns exist, fill missing with 0
       w_n <- dplyr::filter(cnt, feature == fname) |>
-        tidyr::pivot_wider(names_from = .bank, values_from = n, values_fill = 0)
+        tidyr::pivot_wider(names_from = .item_bank, values_from = n, values_fill = 0)
 
       # make sure both bank columns are present even if one was absent
       missing_cols <- setdiff(item_bank_names, names(w_n))
@@ -872,7 +842,7 @@ compare_categoricals_both <- function(long_cat, item_bank_names) {
 
       # proportions wide (for JS)
       w_p <- dplyr::filter(prop_tbl, feature == fname) |>
-        tidyr::pivot_wider(names_from = .bank, values_from = prop, values_fill = 0)
+        tidyr::pivot_wider(names_from = .item_bank, values_from = prop, values_fill = 0)
       missing_cols_p <- setdiff(item_bank_names, names(w_p))
       if (length(missing_cols_p)) for (mc in missing_cols_p) w_p[[mc]] <- 0
       w_p <- w_p[, c("level", item_bank_names), drop = FALSE]
@@ -899,13 +869,13 @@ compare_categoricals_both <- function(long_cat, item_bank_names) {
     dplyr::group_by(feature) |>
     dplyr::mutate(rank = dplyr::min_rank(dplyr::desc(n))) |>
     dplyr::mutate(level_plot = ifelse(rank <= 10, level, "Other")) |>
-    dplyr::group_by(feature, .bank, level_plot) |>
+    dplyr::group_by(feature, .item_bank, level_plot) |>
     dplyr::summarise(n = sum(n), .groups = "drop") |>
-    dplyr::group_by(feature, .bank) |>
+    dplyr::group_by(feature, .item_bank) |>
     dplyr::mutate(prop = n / sum(n)) |>
     dplyr::ungroup()
 
-  p <- ggplot2::ggplot(plot_tbl, ggplot2::aes(x = .bank, y = prop, fill = level_plot)) +
+  p <- ggplot2::ggplot(plot_tbl, ggplot2::aes(x = .item_bank, y = prop, fill = level_plot)) +
     ggplot2::geom_col(position = "fill") +
     ggplot2::facet_wrap(~ feature, scales = "free_y") +
     ggplot2::labs(title = "Categorical features by bank", x = NULL, y = "Proportion", fill = "Level") +
@@ -979,7 +949,7 @@ prepare_categoricals_both <- function(item_bank1, item_bank2, item_bank_names,
   # build long with aligned levels per feature
   make_long <- function(df, bank) {
     tibble::as_tibble(df[, pick, drop = FALSE]) |>
-      dplyr::mutate(.bank = bank) |>
+      dplyr::mutate(.item_bank = bank) |>
       tidyr::pivot_longer(cols = dplyr::all_of(pick),
                           names_to = "feature", values_to = "level") |>
       dplyr::mutate(level = ifelse(is.na(level), "(Missing)", as.character(level)))

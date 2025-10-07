@@ -21,33 +21,30 @@ compare_item_banks(
 )
 }
 \arguments{
-\item{item_bank1, item_bank2}{Data frames containing feature columns.}
+\item{item_bank1, item_bank2}{Data frames with (mostly) numeric feature columns.}
 
-\item{item_bank_names}{Character vector of length 2 naming the item banks.}
+\item{item_bank_names}{Character length-2 naming the banks.}
 
-\item{include, exclude}{Optional tidyselect/character filters for features.}
+\item{include, exclude}{Optional tidyselect/character to filter features.}
 
-\item{id_cols}{Character vector of columns to exclude from feature analysis.}
+\item{id_cols}{Character of columns to exclude from features.}
 
-\item{standardise}{Logical; whether to scale/center features before PCA/PA.}
+\item{standardise}{Logical; scale/center features before PCA/PA.}
 
-\item{pa_type}{"pc" or "fa" for type of parallel analysis.}
+\item{pa_type}{"pc" or "fa" for how many dimensions to retain from PA.}
 
-\item{max_plots}{Maximum number of features to include in violin summaries.}
+\item{max_plots}{Cap the number of violin facets.}
 
 \item{seed}{RNG seed for reproducibility.}
 
-\item{verbose}{Print progress.}
+\item{verbose}{Print CLI progress/tables.}
 
-\item{rotate}{Rotation method for `psych::principal()`.}
+\item{rotate}{Rotation method passed to psych::principal(): One of "none", "varimax", "promax", "oblimin", "equamax" (default: "none").}
 
-\item{name_top}{Number of top-loading features per component in labels.}
+\item{name_top}{Integer; how many top-loading features to include in each component's label (default 2).}
 }
 \value{
 A list with tibbles, ggplots, and PA/PCA objects.
-
-A list with descriptive summaries, categorical tests, component
-summaries, and feature distribution summaries (no raw data).
 }
 \description{
 Compare two item banks (music corpora) by feature distributions and components
@@ -70,7 +67,7 @@ colnames(res$pca$joint$rotation)
 res$pca$joint_score_summary
 
 # --- Categorical outputs ---
-# Long rows (feature, .bank, level)
+# Long rows (feature, .item_bank, level)
 res$categoricals$long |> dplyr::distinct(feature) |> dplyr::arrange(feature)
 # Tests per feature (chi-square/Fisher, Cramér's V, JS divergence)
 res$categoricals$tests |>
