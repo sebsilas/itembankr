@@ -61,10 +61,12 @@
 #'
 #'
 #' @export
+#' Compare two item banks (music corpora) by feature distributions and components (lightweight)
+#' @export
 compare_item_banks <- function(
     item_bank1,
     item_bank2,
-    item_bank_names = c("Bank A", "Bank B"),
+    item_bank_names = c("Item Bank A", "Item Bank B"),
     include = NULL,
     exclude = "ngrukkon",
     id_cols = c("item_id", "parent_durations", "parent_abs_melody"),
@@ -79,7 +81,6 @@ compare_item_banks <- function(
   pa_type <- match.arg(pa_type)
   set.seed(seed)
 
-  # helper to drop heavy plot data
   strip_ggplot_data <- function(p) {
     if (inherits(p, "gg")) {
       p$data <- NULL
@@ -93,10 +94,10 @@ compare_item_banks <- function(
 
   if (verbose) {
     cli::cli_h1("Comparing item banks")
-    cli::cli_text("{.strong Banks}: {.val {item_bank_names[1]}} vs {.val {item_bank_names[2]}}")
+    cli::cli_text("{.strong Item Banks}: {.val {item_bank_names[1]}} vs {.val {item_bank_names[2]}}")
   }
 
-  # 1) Clean names, align features
+  # --- 1) Feature alignment ---
   ib <- prepare_item_banks(
     item_bank1, item_bank2,
     include = include, exclude = exclude, id_cols = id_cols,
@@ -105,75 +106,62 @@ compare_item_banks <- function(
   x1 <- ib$x1; x2 <- ib$x2; xjoint <- ib$xjoint
   long <- ib$long
 
-  # 2) Descriptives & differences (on raw overlap)
+  # --- 2) Descriptive statistics ---
   if (verbose) cli::cli_rule("Descriptive statistics")
   desc_tbl <- summarise_descriptives(long)
   diffs_tbl <- compute_feature_differences(long, item_bank_names)
 
-  # 3) Violin summaries instead of full plots
-  violin_summary <- make_violin_data(long, item_bank_names, max_plots = max_plots)
+  # --- 3) Lightweight violin summaries ---
+  violin_summary <- make_violin_data_light(long, item_bank_names, max_plots = max_plots)
+  plot_violin <- function() plot_violin_summary_light(violin_summary)
 
-  # store a lightweight wrapper function
-  plot_violin <- function() plot_violin_summary(violin_summary)
-
-  # 3b) Categorical comparisons
+  # --- 4) Categorical comparisons (light) ---
   cats <- prepare_categoricals_both(item_bank1, item_bank2, item_bank_names,
                                     include = include, exclude = exclude,
                                     id_cols = id_cols, verbose = verbose)
   cat_long <- cats$long
-  cat_cmp  <- compare_categoricals_both(cat_long, item_bank_names)
+  cat_cmp  <- compare_categoricals_light(cat_long, item_bank_names)
   cat_tests <- cat_cmp$tests
   p_cat <- strip_ggplot_data(cat_cmp$plot)
 
-  if (verbose && nrow(cat_long) > 0) {
-    cli::cli_rule("Categorical comparisons")
-    cli::cli_text(cli::col_cyan("Top features by Cramér's V (first 10):"))
-    print(dplyr::slice_head(cat_tests, n = 10))
-  }
-
-  # 4) Robust prep for PA/PCA (drop bad cols, impute)
+  # --- 5) Component prep ---
   prep <- prepare_for_components(x1, x2, item_bank_names, max_na_prop = 0.5, verbose = verbose)
   x1_c <- prep$x1_clean; x2_c <- prep$x2_clean; xj_c <- prep$xjoint_clean
   x1_i <- prep$x1_imp;   x2_i <- prep$x2_imp;   xj_i <- prep$xjoint_imp
-
   if (ncol(x1_c) == 0L) stop("No features left after cleaning; cannot run PA/PCA.")
 
-  # standardise for PA inputs if requested
   scale_if <- function(df) if (standardise) as.data.frame(scale(df)) else df
   x1_pa <- scale_if(x1_i); x2_pa <- scale_if(x2_i); xj_pa <- scale_if(xj_i)
 
-  # 5) Parallel analysis (safe; with Kaiser fallback)
+  # --- 6) Parallel analysis ---
   if (verbose) cli::cli_rule("Parallel analysis")
-  pa <- run_parallel_analysis(
-    x1_imp = x1_pa, x2_imp = x2_pa, xjoint_imp = xj_pa,
-    pa_type = pa_type, item_bank_names = item_bank_names, verbose = verbose
-  )
+  pa <- run_parallel_analysis(x1_pa, x2_pa, xj_pa,
+                              pa_type = pa_type,
+                              item_bank_names = item_bank_names,
+                              verbose = verbose)
 
-  # 6) PCA on cleaned (non-imputed) data, k capped to available columns
+  # --- 7) PCA (light: only loadings + summary, no scores) ---
   k1 <- min(pa$each[[item_bank_names[1]]]$n, ncol(x1_c), nrow(x1_c) - 1L)
   k2 <- min(pa$each[[item_bank_names[2]]]$n, ncol(x2_c), nrow(x2_c) - 1L)
-  kj <- min(pa$joint$n,                 ncol(xj_c), nrow(xj_c) - 1L)
+  kj <- min(pa$joint$n, ncol(xj_c), nrow(xj_c) - 1L)
 
-  pr1 <- run_pca_named(x1_c, k = k1, standardise = standardise, prefix = "PC",
-                       impute = "median", rotate = rotate, name_top = name_top)
-  pr2 <- run_pca_named(x2_c, k = k2, standardise = standardise, prefix = "PC",
-                       impute = "median", rotate = rotate, name_top = name_top)
-  prj <- run_pca_named(xj_c, k = kj, standardise = standardise, prefix = "Joint PC",
-                       impute = "median", rotate = rotate, name_top = name_top)
+  prj <- run_pca_named(xj_c, k = kj, standardise = standardise,
+                       prefix = "Joint PC", impute = "median",
+                       rotate = rotate, name_top = name_top)
+  prj$x <- NULL  # drop huge score matrix
 
-  pcs <- summarise_joint_pcs(prj, n1 = nrow(x1_c), item_bank_names = item_bank_names, verbose = verbose)
+  pcs <- summarise_joint_pcs_light(prj, n1 = nrow(x1_c),
+                                   item_bank_names = item_bank_names,
+                                   verbose = verbose)
   p_pc_density <- strip_ggplot_data(pcs$density_plot)
   comp_summary <- pcs$summary
 
-  # 7) Correlation-structure similarity (use imputed-clean for stable R)
+  # --- 8) Correlation similarity ---
   if (verbose) cli::cli_rule("Correlation similarity")
   mantel_res <- mantel_similarity(x1_imp = x1_i, x2_imp = x2_i, verbose = verbose)
 
-  # 8) Pretty console tables
-  if (verbose) print_tables_cli(desc_tbl, diffs_tbl, comp_summary)
-
-  # 9) Return
-  out <- list(
+  # --- 9) Return lightweight object ---
+  list(
     banks = item_bank_names,
     features_overlap = ib$feature_map,
     dropped_for_components = prep$dropped_features,
@@ -182,25 +170,139 @@ compare_item_banks <- function(
     differences = diffs_tbl,
     categoricals = list(
       tests = cat_tests,
-      proportions = cat_cmp$proportions,
       plot = p_cat
     ),
     violin = list(
-      summary = violin_summary,
+      summary = violin_summary$box,
       plot = plot_violin
     ),
     pa = pa,
     pca = list(
-      each = setNames(list(pr1, pr2), item_bank_names),
-      joint = prj,
+      joint = list(rotation = prj$rotation),
       joint_score_summary = comp_summary,
       joint_density_plot = p_pc_density
     ),
     extras = list(mantel = mantel_res)
   )
-  class(out) <- c("itembank_compare", class(out))
-  invisible(out)
 }
+
+# ------------------------------------------------------------------
+# Lightweight violin summaries: quantiles + pre-binned densities only
+# ------------------------------------------------------------------
+make_violin_data_light <- function(long, item_bank_names, max_plots = 36, rescale = TRUE, bins = 40) {
+  feats <- head(sort(unique(long$feature)), max_plots)
+  plot_dat <- dplyr::filter(long, feature %in% feats)
+  if (rescale) {
+    plot_dat <- plot_dat |>
+      dplyr::group_by(feature) |>
+      dplyr::mutate(value = (value - min(value, na.rm = TRUE)) /
+                      (max(value, na.rm = TRUE) - min(value, na.rm = TRUE))) |>
+      dplyr::ungroup()
+  }
+
+  # summarize quartiles
+  box_dat <- plot_dat |>
+    dplyr::group_by(feature, .bank) |>
+    dplyr::summarise(
+      ymin = min(value, na.rm = TRUE),
+      lower = quantile(value, 0.25, na.rm = TRUE),
+      middle = median(value, na.rm = TRUE),
+      upper = quantile(value, 0.75, na.rm = TRUE),
+      ymax = max(value, na.rm = TRUE),
+      .groups = "drop"
+    )
+
+  # pre-binned densities
+  dens_dat <- plot_dat |>
+    dplyr::group_by(feature, .bank) |>
+    dplyr::summarise({
+      d <- stats::density(value, n = bins, na.rm = TRUE)
+      tibble::tibble(x = d$x, y = d$y)
+    }, .groups = "drop") |>
+    tidyr::unnest(cols = c(x, y))
+
+  list(box = box_dat, dens = dens_dat)
+}
+
+plot_violin_summary_light <- function(summary_data) {
+  ggplot2::ggplot(summary_data$dens,
+                  ggplot2::aes(x = x, y = y, color = .bank)) +
+    ggplot2::geom_line(size = 0.6) +
+    ggplot2::facet_wrap(~ feature, scales = "free_y") +
+    ggplot2::labs(title = "Feature distributions by bank (light)",
+                  x = "Rescaled value (0–1)", y = "Density") +
+    ggplot2::theme_minimal(base_size = 11) +
+    ggplot2::theme(legend.position = "bottom")
+}
+
+# ------------------------------------------------------------------
+# Lightweight categorical comparison
+# ------------------------------------------------------------------
+compare_categoricals_light <- function(long_cat, item_bank_names) {
+  if (is.null(long_cat) || nrow(long_cat) == 0L) {
+    return(list(tests = tibble::tibble(), plot = ggplot2::ggplot()))
+  }
+
+  cnt <- long_cat |> dplyr::count(feature, .bank, level)
+  prop_tbl <- cnt |>
+    dplyr::group_by(feature, .bank) |>
+    dplyr::mutate(prop = n / sum(n)) |>
+    dplyr::ungroup()
+
+  tests <- cnt |>
+    dplyr::group_by(feature) |>
+    dplyr::summarise(
+      cramers_v = suppressWarnings(
+        psych::cramerV(table(level, .bank))
+      ),
+      n_levels = dplyr::n_distinct(level),
+      .groups = "drop"
+    ) |>
+    dplyr::arrange(dplyr::desc(cramers_v))
+
+  plot_tbl <- prop_tbl |>
+    dplyr::group_by(feature, .bank) |>
+    dplyr::slice_max(n, n = 10) |>
+    dplyr::ungroup()
+
+  p <- ggplot2::ggplot(plot_tbl,
+                       ggplot2::aes(x = .bank, y = prop, fill = level)) +
+    ggplot2::geom_col(position = "fill") +
+    ggplot2::facet_wrap(~ feature, scales = "free_y") +
+    ggplot2::labs(title = "Categorical features by bank (light)",
+                  x = NULL, y = "Proportion", fill = "Level") +
+    ggplot2::theme_minimal(base_size = 11) +
+    ggplot2::theme(legend.position = "bottom")
+
+  list(tests = tests, plot = p)
+}
+
+# ------------------------------------------------------------------
+# Lightweight PCA summary
+# ------------------------------------------------------------------
+summarise_joint_pcs_light <- function(prj, n1, item_bank_names, verbose = TRUE) {
+  if (is.null(prj$rotation) || ncol(prj$rotation) == 0) {
+    return(list(summary = tibble::tibble(), density_plot = ggplot2::ggplot()))
+  }
+
+  load_df <- as.data.frame(prj$rotation)
+  load_summary <- tibble::tibble(
+    component = names(load_df),
+    n_features = nrow(prj$rotation),
+    mean_abs_loading = apply(abs(prj$rotation), 2, mean)
+  )
+
+  dens_plot <- ggplot2::ggplot(load_summary,
+                               ggplot2::aes(x = component, y = mean_abs_loading)) +
+    ggplot2::geom_col(fill = "steelblue") +
+    ggplot2::coord_flip() +
+    ggplot2::labs(title = "Mean absolute loadings per component (light)",
+                  x = NULL, y = "Mean |loading|") +
+    ggplot2::theme_minimal(base_size = 11)
+
+  list(summary = load_summary, density_plot = dens_plot)
+}
+
 
 # ---------------------------- helpers ----------------------------
 

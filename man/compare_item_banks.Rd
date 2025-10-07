@@ -53,16 +53,6 @@ Compare two item banks (music corpora) by feature distributions and components
 set.seed(123)
 
 
-res <- compare_item_banks(
-  item_bank1  = WJD::phrase_item_bank,
-  item_bank2  = Berkowitz::phrase_item_bank,
-  item_bank_names  = c("WJD", "Berkowitz"),
-  standardise = TRUE,
-  pa_type     = "pc",
-  rotate      = "varimax",
-  name_top    = 2,
-  verbose     = FALSE
-)
 
 # --- Numeric summaries & differences ---
 head(res$descriptives)
