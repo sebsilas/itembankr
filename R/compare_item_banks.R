@@ -243,6 +243,15 @@ compare_categoricals_light <- function(long_cat, item_bank_names) {
     return(list(tests = tibble::tibble(), plot = ggplot2::ggplot()))
   }
 
+  # --- helper: Cramér's V computation ---
+  cramer_v <- function(tbl) {
+    if (any(dim(tbl) < 2)) return(NA_real_)
+    chi2 <- suppressWarnings(stats::chisq.test(tbl, correct = FALSE)$statistic)
+    n <- sum(tbl)
+    k <- min(dim(tbl))
+    sqrt(chi2 / (n * (k - 1)))
+  }
+
   cnt <- long_cat |> dplyr::count(feature, .bank, level)
   prop_tbl <- cnt |>
     dplyr::group_by(feature, .bank) |>
@@ -252,9 +261,7 @@ compare_categoricals_light <- function(long_cat, item_bank_names) {
   tests <- cnt |>
     dplyr::group_by(feature) |>
     dplyr::summarise(
-      cramers_v = suppressWarnings(
-        psych::cramerV(table(level, .bank))
-      ),
+      cramers_v = cramer_v(table(level, .bank)),
       n_levels = dplyr::n_distinct(level),
       .groups = "drop"
     ) |>
