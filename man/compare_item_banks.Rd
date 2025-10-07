@@ -7,7 +7,7 @@
 compare_item_banks(
   item_bank1,
   item_bank2,
-  item_bank_names = c("Bank A", "Bank B"),
+  item_bank_names = c("Item Bank A", "Item Bank B"),
   include = NULL,
   exclude = "ngrukkon",
   id_cols = c("item_id", "parent_durations", "parent_abs_melody"),
@@ -21,30 +21,33 @@ compare_item_banks(
 )
 }
 \arguments{
-\item{item_bank1, item_bank2}{Data frames with (mostly) numeric feature columns.}
+\item{item_bank1, item_bank2}{Data frames containing feature columns.}
 
-\item{item_bank_names}{Character length-2 naming the banks.}
+\item{item_bank_names}{Character vector of length 2 naming the item banks.}
 
-\item{include, exclude}{Optional tidyselect/character to filter features.}
+\item{include, exclude}{Optional tidyselect/character filters for features.}
 
-\item{id_cols}{Character of columns to exclude from features.}
+\item{id_cols}{Character vector of columns to exclude from feature analysis.}
 
-\item{standardise}{Logical; scale/center features before PCA/PA.}
+\item{standardise}{Logical; whether to scale/center features before PCA/PA.}
 
-\item{pa_type}{"pc" or "fa" for how many dimensions to retain from PA.}
+\item{pa_type}{"pc" or "fa" for type of parallel analysis.}
 
-\item{max_plots}{Cap the number of violin facets.}
+\item{max_plots}{Maximum number of features to include in violin summaries.}
 
 \item{seed}{RNG seed for reproducibility.}
 
-\item{verbose}{Print CLI progress/tables.}
+\item{verbose}{Print progress.}
 
-\item{rotate}{Rotation method passed to psych::principal(): One of "none", "varimax", "promax", "oblimin", "equamax" (default: "none").}
+\item{rotate}{Rotation method for `psych::principal()`.}
 
-\item{name_top}{Integer; how many top-loading features to include in each component's label (default 2).}
+\item{name_top}{Number of top-loading features per component in labels.}
 }
 \value{
 A list with tibbles, ggplots, and PA/PCA objects.
+
+A list with descriptive summaries, categorical tests, component
+summaries, and feature distribution summaries (no raw data).
 }
 \description{
 Compare two item banks (music corpora) by feature distributions and components
