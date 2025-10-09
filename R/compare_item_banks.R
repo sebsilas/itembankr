@@ -846,7 +846,7 @@ compare_categoricals_both <- function(long_cat, item_bank_names) {
       pv  <- if (!is.null(htest$p.value))   as.numeric(htest$p.value)   else NA_real_
 
       # Cramér's V (guard denom)
-      denom <- n_tot * (min(max(r - 1, 0L), max(c - 1, 0L)))
+      denom <- n_tot * min(r - 1, c - 1)
       v <- if (!is.na(chi) && is.finite(denom) && denom > 0) sqrt(chi / denom) else NA_real_
 
       # proportions wide (for JS)
