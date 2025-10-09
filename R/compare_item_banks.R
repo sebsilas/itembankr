@@ -1,5 +1,10 @@
 
 
+# plot_violin_summary(res$violin$summary)
+# res$categoricals$proportions
+# plot_categoricals(res$categoricals$proportions)
+# plot_joint_pca_density(res$pca$joint_score_summary)
+
 
 #' Compare two item banks (music corpora) by feature distributions and components
 #'
@@ -250,14 +255,29 @@ compare_item_banks <- function(
                               verbose = verbose)
 
   kj <- min(pa$joint$n, ncol(xj_pa), nrow(xj_pa) - 1L)
+
   prj <- run_pca_named(xj_pa, k = kj, standardise = FALSE,
                        prefix = "Joint PC", impute = "median",
                        rotate = rotate, name_top = name_top)
 
-  pcs <- summarise_joint_pcs(prj, n1 = nrow(x1_pa), item_bank_names = item_bank_names, verbose = verbose)
+  prj <- strip_psych_principal(prj)
+
+  pcs_summary <- summarise_joint_pcs(prj, n1 = nrow(x1_pa), item_bank_names = item_bank_names, verbose = verbose)
 
   # --- 7) Mantel similarity
   mantel_res <- mantel_similarity(x1_imp = x1_i, x2_imp = x2_i, verbose = verbose)
+
+
+  # Drop big intermediate objects before deep-copying results
+  rm(cat_long, cats, cnt, prop_tbl, plot_tbl)
+  gc()
+
+  # Detach environments from grouped data
+  cat_tests <- tibble::as_tibble(cat_tests)
+  cat_proportions <- tibble::as_tibble(cat_proportions)
+  cat_tests <- unserialize(serialize(cat_tests, NULL))
+  cat_proportions <- unserialize(serialize(cat_proportions, NULL))
+
 
   # --- 8) Return final object
   out <- list(
@@ -275,8 +295,7 @@ compare_item_banks <- function(
     pa = pa,
     pca = list(
       joint = prj,
-      joint_score_summary = pcs$summary,
-      joint_density_plot = pcs$plot  # callable function
+      joint_score_summary = pcs_summary
     ),
     extras = list(mantel = mantel_res)
   )
@@ -540,21 +559,31 @@ plot_categoricals <- function(proportions_tbl) {
 #' Plot joint PCA score densities by item bank
 #' @param score_data Tibble of PCA component scores or summary (e.g., res$pca$joint_score_summary)
 #' @export
-plot_joint_pca_density <- function(score_data) {
-  if (!"component" %in% names(score_data)) {
+plot_joint_pca_density <- function(score_summary) {
+  if (!"component" %in% names(score_summary)) {
     cli::cli_alert_warning("No joint PCA component column found.")
     return(ggplot2::ggplot() + ggplot2::labs(title = "No PCA data"))
   }
 
-  ggplot2::ggplot(score_data, ggplot2::aes(x = score, color = .item_bank)) +
-    ggplot2::geom_density() +
-    ggplot2::facet_wrap(~ component, scales = "free") +
+  score_long <- score_summary |>
+    tidyr::pivot_longer(
+      cols = tidyselect::matches("^mean_|^sd_"),
+      names_to = c(".value", ".item_bank"),
+      names_pattern = "^(mean|sd)_(.*)$"
+    )
+
+  ggplot2::ggplot(score_long, ggplot2::aes(x = component, y = mean,
+                                           color = .item_bank, group = .item_bank)) +
+    ggplot2::geom_point(position = ggplot2::position_dodge(width = 0.5)) +
+    ggplot2::geom_errorbar(ggplot2::aes(ymin = mean - sd, ymax = mean + sd),
+                           width = 0.2, position = ggplot2::position_dodge(width = 0.5)) +
     ggplot2::labs(
-      title = "Item banks compared on joint PCA components",
-      x = "Score", y = "Density", color = NULL
+      title = "Mean ± SD of joint PCA scores by item bank",
+      x = "Component",
+      y = "Mean ± SD",
+      color = "Item bank"
     ) +
-    ggplot2::theme_minimal(base_size = 12) +
-    ggplot2::theme(legend.position = "bottom")
+    ggplot2::theme_minimal(base_size = 12)
 }
 
 
@@ -753,53 +782,42 @@ run_pca_named <- function(x, k = NULL, standardise = TRUE, prefix = "PC",
 
 
 summarise_joint_pcs <- function(prj, n1, item_bank_names, verbose = TRUE) {
+
   scores <- tibble::as_tibble(prj$x)
   if (ncol(scores) == 0L) {
+
     if (verbose) cli::cli_alert_warning("No principal components available after cleaning.")
-    return(list(
-      summary = tibble::tibble(),
-      plot = function() ggplot2::ggplot() + ggplot2::labs(title = "No PCs to plot")
-    ))
+    return(tibble::tibble())
   }
 
-  make_long <- function() {
-    dplyr::bind_cols(
-      tibble::tibble(.item_bank = c(rep(item_bank_names[1], n1),
-                                    rep(item_bank_names[2], nrow(scores) - n1))),
-      scores
-    ) |>
-      tidyr::pivot_longer(-.item_bank, names_to = "component", values_to = "score")
-  }
+  # Split scores by item bank
+  scj_split <- setNames(
+    list(
+      scores[seq_len(n1), , drop = FALSE],
+      scores[-seq_len(n1), , drop = FALSE]
+    ),
+    item_bank_names
+  )
 
-  comp_summary <- make_long() |>
-    dplyr::group_by(.item_bank, component) |>
-    dplyr::summarise(
-      n = dplyr::n(),
-      mean = mean(score, na.rm = TRUE),
-      sd = stats::sd(score, na.rm = TRUE),
-      median = stats::median(score, na.rm = TRUE),
-      .groups = "drop"
-    ) |>
+
+  # Compute compact summaries directly from matrices (no pivot_longer)
+  comp_summary <- purrr::map_dfr(names(scj_split), function(bk) {
+    mat <- scj_split[[bk]]
+    tibble::tibble(
+      .item_bank = bk,
+      component = colnames(mat),
+      n = nrow(mat),
+      mean = colMeans(mat, na.rm = TRUE),
+      sd = apply(mat, 2, stats::sd, na.rm = TRUE),
+      median = apply(mat, 2, stats::median, na.rm = TRUE)
+    )
+  }) |>
     tidyr::pivot_wider(names_from = .item_bank, values_from = c(n, mean, sd, median))
 
   if (verbose) cli::cli_alert_success("Joint PC summaries computed.")
-
-  plot_fun <- function() {
-    scj_comp <- make_long()
-    ggplot2::ggplot(scj_comp, ggplot2::aes(x = score, color = .item_bank)) +
-      ggplot2::geom_density() +
-      ggplot2::facet_wrap(~ component, scales = "free") +
-      ggplot2::labs(title = "Item Banks Compared on Joint Principal Components",
-                    x = "Score", y = "Density", color = NULL) +
-      ggplot2::theme_minimal(base_size = 12) +
-      ggplot2::theme(legend.position = "bottom")
-  }
-
-  list(
-    summary = comp_summary,
-    plot = plot_fun
-  )
+  comp_summary
 }
+
 
 
 # ---------------------------- Similarity & printing ----------------------------
@@ -1029,6 +1047,19 @@ prepare_categoricals_both <- function(item_bank1, item_bank2, item_bank_names,
   }
 
   list(long = long, features = pick)
+}
+
+
+strip_psych_principal <- function(prj) {
+  heavy_slots <- c("scores", "weights", "communality", "residual", "r")
+  for (slot in heavy_slots) if (slot %in% names(prj)) prj[[slot]] <- NULL
+  if ("loadings" %in% names(prj)) {
+    prj$loadings <- unclass(prj$loadings)
+    attributes(prj$loadings) <- NULL
+  }
+  prj$call <- NULL
+  prj$fncall <- NULL
+  unserialize(serialize(prj, NULL))
 }
 
 
