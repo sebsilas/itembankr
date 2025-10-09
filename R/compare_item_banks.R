@@ -144,7 +144,6 @@ compare_item_banks <- function(
   cat_long <- cats$long
 
   cat_tests <- tibble::tibble()
-  cat_plot <- ggplot2::ggplot()
   cat_proportions <- tibble::tibble()
 
   if (nrow(cat_long) > 0) {
@@ -228,13 +227,6 @@ compare_item_banks <- function(
       dplyr::mutate(prop = n / sum(n)) |>
       dplyr::ungroup()
 
-    cat_plot <- ggplot2::ggplot(plot_tbl, ggplot2::aes(x = .item_bank, y = prop, fill = level_plot)) +
-      ggplot2::geom_col(position = "fill") +
-      ggplot2::facet_wrap(~ feature, scales = "free_y") +
-      ggplot2::labs(title = "Categorical features by item bank",
-                    x = NULL, y = "Proportion", fill = "Level") +
-      ggplot2::theme_minimal(base_size = 12) +
-      ggplot2::theme(legend.position = "bottom")
 
     # Keep only top levels (compact summary)
     cat_proportions <- plot_tbl %>%
@@ -278,14 +270,22 @@ compare_item_banks <- function(
     categoricals = list(
       tests = cat_tests,
       proportions = cat_proportions,
-      plot = cat_plot
+      plot = function() {
+        ggplot2::ggplot(cat_proportions, ggplot2::aes(x = .item_bank, y = prop, fill = level_plot)) +
+          ggplot2::geom_col(position = "fill") +
+          ggplot2::facet_wrap(~ feature, scales = "free_y") +
+          ggplot2::labs(title = "Categorical features by item bank",
+                        x = NULL, y = "Proportion", fill = "Level") +
+          ggplot2::theme_minimal(base_size = 12) +
+          ggplot2::theme(legend.position = "bottom")
+      }
     ),
     violin = list(summary = violin_summary),
     pa = pa,
     pca = list(
       joint = prj,
       joint_score_summary = pcs$summary,
-      joint_density_plot = pcs$density_plot
+      joint_density_plot = function() pcs$density_plot
     ),
     extras = list(mantel = mantel_res)
   )
