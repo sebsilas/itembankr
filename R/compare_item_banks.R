@@ -269,23 +269,14 @@ compare_item_banks <- function(
     differences = diffs_tbl,
     categoricals = list(
       tests = cat_tests,
-      proportions = cat_proportions,
-      plot = function() {
-        ggplot2::ggplot(cat_proportions, ggplot2::aes(x = .item_bank, y = prop, fill = level_plot)) +
-          ggplot2::geom_col(position = "fill") +
-          ggplot2::facet_wrap(~ feature, scales = "free_y") +
-          ggplot2::labs(title = "Categorical features by item bank",
-                        x = NULL, y = "Proportion", fill = "Level") +
-          ggplot2::theme_minimal(base_size = 12) +
-          ggplot2::theme(legend.position = "bottom")
-      }
+      proportions = cat_proportions
     ),
     violin = list(summary = violin_summary),
     pa = pa,
     pca = list(
       joint = prj,
       joint_score_summary = pcs$summary,
-      joint_density_plot = function() pcs$density_plot
+      joint_density_plot = pcs$plot  # callable function
     ),
     extras = list(mantel = mantel_res)
   )
@@ -526,6 +517,47 @@ plot_violin_summary <- function(summary_data, max_features = 36) {
     )
 }
 
+#' Plot categorical proportions by item bank
+#' @param proportions_tbl Tibble of feature × bank × level proportions (e.g., res$categoricals$proportions)
+#' @export
+plot_categoricals <- function(proportions_tbl) {
+  if (nrow(proportions_tbl) == 0L) {
+    cli::cli_alert_warning("No categorical proportions to plot.")
+    return(ggplot2::ggplot() + ggplot2::labs(title = "No data"))
+  }
+
+  ggplot2::ggplot(proportions_tbl, ggplot2::aes(x = .item_bank, y = prop, fill = level_plot)) +
+    ggplot2::geom_col(position = "fill") +
+    ggplot2::facet_wrap(~ feature, scales = "free_y") +
+    ggplot2::labs(
+      title = "Categorical features by item bank",
+      x = NULL, y = "Proportion", fill = "Level"
+    ) +
+    ggplot2::theme_minimal(base_size = 12) +
+    ggplot2::theme(legend.position = "bottom")
+}
+
+#' Plot joint PCA score densities by item bank
+#' @param score_data Tibble of PCA component scores or summary (e.g., res$pca$joint_score_summary)
+#' @export
+plot_joint_pca_density <- function(score_data) {
+  if (!"component" %in% names(score_data)) {
+    cli::cli_alert_warning("No joint PCA component column found.")
+    return(ggplot2::ggplot() + ggplot2::labs(title = "No PCA data"))
+  }
+
+  ggplot2::ggplot(score_data, ggplot2::aes(x = score, color = .item_bank)) +
+    ggplot2::geom_density() +
+    ggplot2::facet_wrap(~ component, scales = "free") +
+    ggplot2::labs(
+      title = "Item banks compared on joint PCA components",
+      x = "Score", y = "Density", color = NULL
+    ) +
+    ggplot2::theme_minimal(base_size = 12) +
+    ggplot2::theme(legend.position = "bottom")
+}
+
+
 
 
 # ---------- Robust PA/PCA prep & PA (safe) ----------
@@ -726,17 +758,20 @@ summarise_joint_pcs <- function(prj, n1, item_bank_names, verbose = TRUE) {
     if (verbose) cli::cli_alert_warning("No principal components available after cleaning.")
     return(list(
       summary = tibble::tibble(),
-      density_plot = ggplot2::ggplot() + ggplot2::labs(title = "No PCs to plot")
+      plot = function() ggplot2::ggplot() + ggplot2::labs(title = "No PCs to plot")
     ))
   }
 
-  scj_comp <- dplyr::bind_cols(
-    tibble::tibble(.item_bank = c(rep(item_bank_names[1], n1), rep(item_bank_names[2], nrow(scores) - n1))),
-    scores
-  ) |>
-    tidyr::pivot_longer(-.item_bank, names_to = "component", values_to = "score")
+  make_long <- function() {
+    dplyr::bind_cols(
+      tibble::tibble(.item_bank = c(rep(item_bank_names[1], n1),
+                                    rep(item_bank_names[2], nrow(scores) - n1))),
+      scores
+    ) |>
+      tidyr::pivot_longer(-.item_bank, names_to = "component", values_to = "score")
+  }
 
-  comp_summary <- scj_comp |>
+  comp_summary <- make_long() |>
     dplyr::group_by(.item_bank, component) |>
     dplyr::summarise(
       n = dplyr::n(),
@@ -749,15 +784,23 @@ summarise_joint_pcs <- function(prj, n1, item_bank_names, verbose = TRUE) {
 
   if (verbose) cli::cli_alert_success("Joint PC summaries computed.")
 
-  p_pc_density <- ggplot2::ggplot(scj_comp, ggplot2::aes(x = score, color = .item_bank)) +
-    ggplot2::geom_density() +
-    ggplot2::facet_wrap(~ component, scales = "free") +
-    ggplot2::labs(title = "Item Banks Compared on Joint Principal Components", x = "Score", y = "Density", color = NULL) +
-    ggplot2::theme_minimal(base_size = 12) +
-    ggplot2::theme(legend.position = "bottom")
+  plot_fun <- function() {
+    scj_comp <- make_long()
+    ggplot2::ggplot(scj_comp, ggplot2::aes(x = score, color = .item_bank)) +
+      ggplot2::geom_density() +
+      ggplot2::facet_wrap(~ component, scales = "free") +
+      ggplot2::labs(title = "Item Banks Compared on Joint Principal Components",
+                    x = "Score", y = "Density", color = NULL) +
+      ggplot2::theme_minimal(base_size = 12) +
+      ggplot2::theme(legend.position = "bottom")
+  }
 
-  list(summary = comp_summary, density_plot = p_pc_density)
+  list(
+    summary = comp_summary,
+    plot = plot_fun
+  )
 }
+
 
 # ---------------------------- Similarity & printing ----------------------------
 
