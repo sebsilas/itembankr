@@ -912,7 +912,8 @@ prepare_categoricals_both <- function(item_bank1, item_bank2, item_bank_names,
   cat_cols <- function(df) names(df)[vapply(df, function(x) is.factor(x) || is.character(x) || is.logical(x), logical(1))]
 
   # always exclude these from categorical analyses
-  always_exclude <- c("abs_melody", "durations", "item_type", "melody")
+  always_exclude <- c("abs_melody", "durations", "item_type", "melody", "parent_abs_melody", "parent_durations")
+
 
   # clean names first so exclusions match
   ib1 <- janitor::clean_names(item_bank1)
