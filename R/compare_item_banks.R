@@ -184,6 +184,9 @@ compare_item_banks <- function(
         rownames(mat) <- w_n$level
         n_tot <- sum(mat)
 
+        r <- nrow(mat)
+        c <- ncol(mat)
+
         # Fisher if small cells
         htest <- tryCatch({
           if (any(mat < 5)) stats::fisher.test(mat) else stats::chisq.test(mat)
@@ -193,8 +196,8 @@ compare_item_banks <- function(
         df  <- if (!is.null(htest$parameter)) as.integer(htest$parameter) else NA_integer_
         pv  <- if (!is.null(htest$p.value))   as.numeric(htest$p.value)   else NA_real_
 
-        denom <- n_tot * (min(max(nrow(mat) - 1, 0L), max(ncol(mat) - 1, 0L)))
-        v <- if (!is.na(chi) && denom > 0) sqrt(chi / denom) else NA_real_
+        denom <- n_tot * min(r - 1, c - 1)
+        v <- if (!is.na(chi) && is.finite(denom) && denom > 0) sqrt(chi / denom) else NA_real_
 
         # Proportions for JS divergence
         w_p <- dplyr::filter(prop_tbl, feature == fname) |>
@@ -233,7 +236,13 @@ compare_item_banks <- function(
       ggplot2::theme_minimal(base_size = 12) +
       ggplot2::theme(legend.position = "bottom")
 
-    cat_proportions <- prop_tbl
+    # Keep only top levels (compact summary)
+    cat_proportions <- plot_tbl %>%
+      dplyr::group_by(feature, .item_bank) %>%
+      dplyr::arrange(dplyr::desc(prop), .by_group = TRUE) %>%
+      dplyr::slice_head(n = 10) %>%
+      dplyr::ungroup()
+
   }
 
   # --- 6) PCA section (re-add joint summaries and density plot)
@@ -882,7 +891,15 @@ compare_categoricals_both <- function(long_cat, item_bank_names) {
     ggplot2::theme_minimal(base_size = 12) +
     ggplot2::theme(legend.position = "bottom")
 
-  list(tests = tests, plot = p, proportions = prop_tbl)
+  # keep only compact top-level summary for each feature × item bank
+  compact_props <- plot_tbl %>%
+    dplyr::group_by(feature, .item_bank) %>%
+    dplyr::arrange(dplyr::desc(prop), .by_group = TRUE) %>%
+    dplyr::slice_head(n = 10) %>%
+    dplyr::ungroup()
+
+  list(tests = tests, plot = p, proportions = compact_props)
+
 }
 
 
