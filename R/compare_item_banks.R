@@ -259,7 +259,7 @@ compare_item_banks <- function(
                        prefix = "Joint PC", impute = "median",
                        rotate = rotate, name_top = name_top)
 
-  # 👇 summarise BEFORE stripping heavy slots
+  # summarise BEFORE stripping heavy slots
   pcs_summary <- summarise_joint_pcs(
     prj,
     n1 = nrow(x1_pa),
@@ -267,7 +267,7 @@ compare_item_banks <- function(
     verbose = verbose
   )
 
-  # 👇 THEN remove the heavy fields
+  # THEN remove the heavy fields
   prj <- strip_psych_principal(prj)
 
 
