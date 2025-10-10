@@ -259,9 +259,17 @@ compare_item_banks <- function(
                        prefix = "Joint PC", impute = "median",
                        rotate = rotate, name_top = name_top)
 
+  # 👇 summarise BEFORE stripping heavy slots
+  pcs_summary <- summarise_joint_pcs(
+    prj,
+    n1 = nrow(x1_pa),
+    item_bank_names = item_bank_names,
+    verbose = verbose
+  )
+
+  # 👇 THEN remove the heavy fields
   prj <- strip_psych_principal(prj)
 
-  pcs_summary <- summarise_joint_pcs(prj, n1 = nrow(x1_pa), item_bank_names = item_bank_names, verbose = verbose)
 
   # --- 7) Mantel similarity
   mantel_res <- mantel_similarity(x1_imp = x1_i, x2_imp = x2_i, verbose = verbose)
