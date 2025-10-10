@@ -178,10 +178,6 @@ res <- compare_item_banks(
   verbose     = TRUE
 )
 
-# Visuals
-res$violin_plot                 # distributions by bank
-res$pca$joint_density_plot      # joint PC score densities by bank
-
 # Numeric summaries
 res$descriptives
 res$differences |>

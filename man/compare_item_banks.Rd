@@ -80,7 +80,6 @@ res$categoricals$proportions |> dplyr::slice_head(n = 10)
 \donttest{
   res$violin_plot
   res$categoricals$plot
-  res$pca$joint_density_plot
 }
 
 

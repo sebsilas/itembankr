@@ -61,7 +61,6 @@
 #' \donttest{
 #'   res$violin_plot
 #'   res$categoricals$plot
-#'   res$pca$joint_density_plot
 #' }
 #'
 #'
@@ -1051,7 +1050,7 @@ prepare_categoricals_both <- function(item_bank1, item_bank2, item_bank_names,
 
 
 strip_psych_principal <- function(prj) {
-  heavy_slots <- c("scores", "weights", "communality", "residual", "r")
+  heavy_slots <- c("x", "scores", "weights", "communality", "residual", "r")
   for (slot in heavy_slots) if (slot %in% names(prj)) prj[[slot]] <- NULL
   if ("loadings" %in% names(prj)) {
     prj$loadings <- unclass(prj$loadings)
