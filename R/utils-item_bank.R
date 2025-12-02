@@ -44,7 +44,7 @@ attach_audio_features <- function(mel_df, aud_df) {
     dplyr::starts_with("AUD_")
   )
 
-  dplyr::left_join(mel_df, aud_keep, by = "META_file_key")
+  dplyr::full_join(mel_df, aud_keep, by = "META_file_key")
 }
 
 

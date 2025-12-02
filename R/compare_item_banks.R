@@ -768,7 +768,7 @@ run_pca_named <- function(x, k = NULL, standardise = TRUE, prefix = "PC",
     sapply(seq_len(ncol(rot_mat)), function(j) {
       # pick top-|name_top| features by absolute loading
       n_pick <- max(1L, min(name_top, nrow(rot_mat)))
-      top_idx <- order(abs(rot_mat[, j]), decreasing = TRUE)[seq_len(n_pick)]
+      top_idx <- order(rot_mat[, j], decreasing = TRUE)[seq_len(n_pick)]
       top_feats <- rownames(rot_mat)[top_idx]
       paste0(prefix, " ", j, ": ", paste(top_feats, collapse = " + "))
     }, USE.NAMES = FALSE)

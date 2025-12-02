@@ -92,7 +92,7 @@ create_item_bank <- function(name = "",
   )
 
   # NOTE: original input_check signature (audio-only not supported there)
-  input_check(midi_file_dir, musicxml_file_dir, input_df)
+  input_check(midi_file_dir, musicxml_file_dir, input_df, audio_file_dir)
 
   if (remove_melodies_with_any_repeated_notes) {
     # stricter option subsumes the weaker one
@@ -108,11 +108,17 @@ create_item_bank <- function(name = "",
   combined_item_bank <- NA
   audio_item_bank    <- NA
 
+  if(length(midi_file_dir) == 0L && length(musicxml_file_dir) == 0L && length(audio_file_dir) == 1L) {
+    audio_only <- TRUE
+  } else {
+    audio_only <- FALSE
+  }
+
   # -------------------------------------------------------------------
   # FILE BANK (meta only; no features yet)
   if (input %in% c("files", "files_phrases")) {
-    file_item_bank <- create_item_bank_from_files(midi_file_dir, musicxml_file_dir, slice_head) %>%
-      remove_melodies(remove_melodies_with_only_repeated_notes, remove_melodies_with_any_repeated_notes) %>%
+    file_item_bank <- create_item_bank_from_files(midi_file_dir, musicxml_file_dir, audio_file_dir, slice_head, audio_only) %>%
+      { if(audio_only) . else remove_melodies(., remove_melodies_with_only_repeated_notes, remove_melodies_with_any_repeated_notes) } %>%
       dplyr::mutate(item_type = "file",
                     item_id   = paste0(name, "_file_", dplyr::row_number()))
   }
@@ -178,17 +184,17 @@ create_item_bank <- function(name = "",
     if (input %in% c("files", "files_phrases")) {
       # start from file bank meta, compute melodic features
       item_item_bank <- deprefix_cols(file_item_bank) %>%               # ensure unprefixed for feature funcs
-        get_melody_features() %>%
-        remove_melodies(remove_melodies_with_only_repeated_notes, remove_melodies_with_any_repeated_notes) %>%
-        scale_durations_to_have_min_abs_value_of_x_seconds(x = scale_durations_to_have_min_abs_value_of_x_seconds) %>%
+        { if(audio_only) . else get_melody_features(.) } %>%
+        { if(audio_only) . else remove_melodies(., remove_melodies_with_only_repeated_notes, remove_melodies_with_any_repeated_notes) } %>%
+        { if(audio_only) . else scale_durations_to_have_min_abs_value_of_x_seconds(., x = scale_durations_to_have_min_abs_value_of_x_seconds) } %>%
         dplyr::mutate(item_type = "item",
                       item_id   = paste0(name, "_item_", dplyr::row_number()))
     } else {
       # input_df path: assume unprefixed abs_melody/durations provided
       item_item_bank <- input_df %>%
-        get_melody_features() %>%
-        remove_melodies(remove_melodies_with_only_repeated_notes, remove_melodies_with_any_repeated_notes) %>%
-        scale_durations_to_have_min_abs_value_of_x_seconds(x = scale_durations_to_have_min_abs_value_of_x_seconds) %>%
+        { if(audio_only) . else get_melody_features(.) } %>%
+        { if(audio_only) . else remove_melodies(., remove_melodies_with_only_repeated_notes, remove_melodies_with_any_repeated_notes) } %>%
+        { if(audio_only) .  else scale_durations_to_have_min_abs_value_of_x_seconds(., x = scale_durations_to_have_min_abs_value_of_x_seconds) } %>%
         dplyr::mutate(item_type = "item",
                       item_id   = paste0(name, "_item_", dplyr::row_number()))
     }
@@ -231,9 +237,9 @@ create_item_bank <- function(name = "",
     # compute features if not already computed (files_phrases got features via items)
     if (input != "files_phrases") {
       phrase_item_bank <- phrase_item_bank %>%
-        remove_melodies(remove_melodies_with_only_repeated_notes, remove_melodies_with_any_repeated_notes) %>%
-        scale_durations_to_have_min_abs_value_of_x_seconds(x = scale_durations_to_have_min_abs_value_of_x_seconds) %>%
-        get_melody_features() %>%
+        { if(audio_only) . else remove_melodies(., remove_melodies_with_only_repeated_notes, remove_melodies_with_any_repeated_notes) } %>%
+        { if(audio_only) . else scale_durations_to_have_min_abs_value_of_x_seconds(x = scale_durations_to_have_min_abs_value_of_x_seconds) } %>%
+        { if(audio_only) . else get_melody_features(.) } %>%
         dplyr::mutate(item_type = "phrase",
                       item_id   = paste0(name, "_phrase_", dplyr::row_number()))
     } else {
@@ -269,7 +275,7 @@ create_item_bank <- function(name = "",
 
     ngram_item_bank <- src_for_ngrams %>%
       create_ngram_item_bank(lower_ngram_bound, upper_ngram_bound, get_ngrukkon) %>%
-      remove_melodies(remove_melodies_with_only_repeated_notes, remove_melodies_with_any_repeated_notes) %>%
+      { if(audio_only) . else remove_melodies(., remove_melodies_with_only_repeated_notes, remove_melodies_with_any_repeated_notes) } %>%
       dplyr::mutate(item_type = "ngram",
                     item_id   = paste0(name, "_ngram_", dplyr::row_number()))
   }
