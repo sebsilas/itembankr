@@ -201,14 +201,19 @@ int_to_pattern <- function (v) {
 
 get_mean_information_content <- function(seq) {
 
-  if(check_pkg_installed("ppm")) {
-    seq <- factor(seq)
-    mod <- ppm::new_ppm_simple(alphabet_size = 108)
-    res <- ppm::model_seq(mod, seq)
-    return(round(mean(res$information_content, na.rm = TRUE), 2))
-  } else {
-    return(NA)
-  }
+  tryCatch({
+    if(check_pkg_installed("ppm")) {
+      seq <- factor(seq)
+      mod <- ppm::new_ppm_simple(alphabet_size = 108)
+      res <- ppm::model_seq(mod, seq)
+      return(round(mean(res$information_content, na.rm = TRUE), 2))
+    } else {
+      return(NA)
+    }
+  }, error = function(err) {
+    logging::logerror("Error: %s", err)
+  })
+
 
 }
 
