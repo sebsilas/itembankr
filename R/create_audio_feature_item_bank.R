@@ -126,9 +126,9 @@ extract_audio_features <- function(audio_file_path,
 
   mfcc_df <- tryCatch({
     tuneR::melfcc(audio) |>
-      as_tibble() |>
-      mutate(across(everything(), ~ ifelse(is.nan(.), NA, .))) |>
-      summarise(across(everything(), list(mean = mean, sd = sd), na.rm = TRUE))
+      tibble::as_tibble() |>
+      dplyr::mutate(dplyr::across(dplyr::everything(), ~ ifelse(is.nan(.), NA, .))) |>
+      dplyr::summarise(dplyr::across(dplyr::everything(), list(mean = mean, sd = sd), na.rm = TRUE))
   }, error = function(e) tibble::tibble())
 
   spec_df <- tryCatch({

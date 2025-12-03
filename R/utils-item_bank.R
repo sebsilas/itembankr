@@ -35,7 +35,10 @@ remove_melodies_with_only_repeated_notes <- function(item_bank) {
 # ---- helper: attach AUD_* by META_file_key if possible ----
 attach_audio_features <- function(mel_df, aud_df) {
 
-  mel_df$META_audio_file <- NULL
+  if(!is.scalar.na(mel_df) &&!is.null(mel_df$META_audio_file) && !is.scalar.na(aud_df) && !is.null(aud_df$META_audio_file)) {
+    mel_df$META_audio_file <- NULL
+  }
+
   if (is_na_scalar(mel_df) || is_na_scalar(aud_df)) return(mel_df)
   if (!all(c("META_file_key") %in% c(names(mel_df), names(aud_df)))) return(mel_df)
 
