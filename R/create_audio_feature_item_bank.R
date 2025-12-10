@@ -158,8 +158,8 @@ normalise_to_wav <- function(infile,
                              target_lufs = -16.0,
                              tp = -1.0,
                              lra = 8,
-                             sr = NULL,         # NULL = preserve native sample rate
-                             mono = FALSE,      # FALSE = preserve stereo
+                             sr = NULL,        # NULL = preserve native sample rate
+                             mono = FALSE,     # FALSE = preserve stereo
                              trim_silence = TRUE,
                              verbose = FALSE) {
 
@@ -167,30 +167,38 @@ normalise_to_wav <- function(infile,
   out_wav <- tempfile(fileext = ".wav")
 
   trimf <- if (trim_silence)
-    "silenceremove=start_periods=1:start_threshold=-50dB:stop_periods=1:stop_threshold=-50dB," else ""
+    "silenceremove=start_periods=1:start_threshold=-50dB:stop_periods=1:stop_threshold=-50dB,"
+  else
+    ""
 
-  # dynamic resampling flag
   resample_str <- if (!is.null(sr)) paste0(",aresample=", sr) else ""
 
+  # IMPORTANT: fully quote filtergraph because it contains commas, colons, equals signs
   af <- paste0(
     trimf,
-    "loudnorm=I=", target_lufs, ":LRA=", lra, ":TP=", tp, ":linear=true,",
+    "loudnorm=I=", target_lufs,
+    ":LRA=", lra,
+    ":TP=", tp,
+    ":linear=true,",
     "aformat=channel_layouts=", if (mono) "mono" else "stereo",
     resample_str
   )
 
-  cmd <- glue::glue_safe(
-    "ffmpeg -y -hide_banner -nostats -i '{p}' -af {af} -sample_fmt s16 '{out_wav}'"
+  cmd <- glue::glue(
+    "ffmpeg -y -hide_banner -nostats -i '{p}' ",
+    "-af \"{af}\" ",
+    "-sample_fmt s16 '{out_wav}'"
   )
 
-  if (verbose) cat(cli::col_blue(cmd), "\n")
+  if (verbose) cat(cmd, "\n")
 
   status <- system(cmd, ignore.stdout = TRUE, ignore.stderr = TRUE)
   if (status != 0)
     stop(glue::glue("ffmpeg failed (status {status})."))
 
-  out_wav
+  return(out_wav)
 }
+
 
 
 # ============================================================
@@ -308,28 +316,28 @@ compute_ecoacoustics <- function(audio) {
 # ============================================================
 
 reencode_audio_file <- function(file_path, verbose = FALSE) {
+
   outpath <- tempfile(fileext = ".mp3")
+  p <- normalizePath(path.expand(file_path), mustWork = TRUE)
 
-  if (verbose) cat(cli::col_blue(sprintf(
-    "Re-encoding audio file to LAME mp3. New outpath: %s", outpath)))
-
-  command <- glue::glue_safe(
-    "ffmpeg -i '{file_path}' -codec:a libmp3lame -qscale:a 0 -vn '{outpath}'"
+  # Quote file paths properly
+  cmd <- glue::glue(
+    "ffmpeg -y -hide_banner -nostats -i '{p}' ",
+    "-codec:a libmp3lame -qscale:a 0 -vn '{outpath}'"
   )
 
-  if (verbose) cat(cli::col_blue(sprintf("command: %s", command)))
+  if (verbose) cat("Re-encoding with:\n", cmd, "\n")
 
-  tryCatch({
-    system(command, ignore.stdout = TRUE, ignore.stderr = TRUE)
-  }, error = function(e) {
-    cat(cli::col_red("Unable to reencode audio file"))
-    outpath <<- file_path
-  }, finally = function() {
-    unlink(file_path)
-  })
+  status <- system(cmd, ignore.stdout = TRUE, ignore.stderr = TRUE)
 
-  outpath
+  if (status != 0) {
+    warning("ffmpeg failed during reencode; returning original file")
+    return(p)
+  }
+
+  return(outpath)
 }
+
 
 
 
