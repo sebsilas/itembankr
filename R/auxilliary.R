@@ -3,15 +3,42 @@
 
 #' Produce a table describing and operationalising melodic features (for paper-writing)
 #'
+#' Word-safe (papaja → pandoc → docx) implementation.
+#'
 #' @param features Optional character vector of feature names to filter.
-#' @param return_kable If TRUE (default), return knitr::kable with escape = FALSE.
+#' @param return_kable If TRUE (default), returns a pandoc-ready kable (escape = FALSE).
 #'
 #' @return tibble or knitr_kable
 #' @export
 #'
 #' @examples
-#' get_melodic_feature_table(c("target_melody_length","i.entropy","tonalness"))
+#' get_melodic_feature_table(
+#'   c("step.cont.loc.var", "mean_int_size", "d.entropy")
+#' )
 get_melodic_feature_table <- function(features = NULL, return_kable = TRUE) {
+
+  # ---------------------------------------------------------------------------
+  # Helpers (Word / pandoc safe)
+  # ---------------------------------------------------------------------------
+
+  # Absolute value helper (never use | |)
+  abs_tex <- function(x) paste0("\\\\lvert ", x, " \\\\rvert")
+
+  # Sum helper with explicit limits
+  sum_tex <- function(body, idx = "i", from = "1", to = "N") {
+    paste0("\\\\sum_{", idx, "=", from, "}^{", to, "}", body)
+  }
+
+  # Final sanitizer (last line of defence)
+  sanitize_math <- function(x) {
+    x |>
+      stringr::str_replace_all("&#124;", "") |>
+      stringr::str_replace_all("\\|([^|]+)\\|", "\\\\lvert \\1 \\\\rvert")
+  }
+
+  # ---------------------------------------------------------------------------
+  # Feature table
+  # ---------------------------------------------------------------------------
 
   tbl <- tibble::tibble(
 
@@ -35,65 +62,92 @@ get_melodic_feature_table <- function(features = NULL, return_kable = TRUE) {
       "Log-transformed relative frequency.",
       "Inverse document frequency of the melody in the corpus.",
 
-      "Interval entropy: uncertainty of successive pitch intervals, reflecting intervallic diversity.",
-      "Pitch span: difference between highest and lowest MIDI pitch in the melody.",
+      "Interval entropy: uncertainty of successive pitch intervals.",
+      "Pitch span: difference between highest and lowest MIDI pitch.",
 
-      "Strength of implied key: maximum correlation between melody and major/minor key profiles.",
-      "Tonal clarity: ratio between the strongest and second-strongest key correlations.",
-      "Tonal spike: dominance of the strongest key correlation relative to all positive correlations.",
+      "Strength of implied key: maximum correlation with major/minor key profiles.",
+      "Tonal clarity: ratio between strongest and second-strongest key correlations.",
+      "Tonal spike: dominance of strongest key correlation over all positive correlations.",
       "Mode (major or minor) of the strongest implied key.",
 
-      "Global variation of step contour: standard deviation of the step contour representation.",
-      "Global direction of step contour: correlation between contour height and time.",
-      "Local variation of step contour: mean absolute difference between adjacent contour values.",
+      "Global variation of step contour (standard deviation).",
+      "Global direction of step contour (correlation with time).",
+      "Local variation of step contour (mean absolute adjacent difference).",
 
       "Mean absolute pitch interval size.",
       "Maximum absolute pitch interval.",
       "Number of changes in melodic direction.",
-      "Proportion of direction changes relative to possible transitions.",
+      "Proportion of direction changes.",
 
-      "Interval variety: proportion of distinct intervals.",
-      "Pitch variety: proportion of distinct pitch classes visited.",
-      "Mean run length: inverse measure of directional persistence.",
+      "Interval variety (distinct intervals / total intervals).",
+      "Pitch variety (distinct pitches visited).",
+      "Mean run length (inverse directional persistence).",
 
       "Duration entropy: uncertainty of rhythmic values.",
       "Proportion of equal-duration transitions.",
       "Mean note duration.",
 
-      "Mean information content of pitches under a statistical learning model."
+      "Mean pitch information content under a statistical learning model."
     ),
 
-    Equation = c(
-      "$N$",
-      "$f$", "$f / \\sum f$", "$\\log(f)$", "$\\log(N / f)$",
+    Equation = sanitize_math(c(
 
-      "$- \\frac{ \\sum_i f_i \\log_2 f_i }{ \\log_2 23 }$",
+      # target_melody_length
+      "$N$",
+
+      # corpus frequency
+      "$f$",
+      "$f / \\sum f$",
+      "$\\log(f)$",
+      "$\\log(N / f)$",
+
+      # interval entropy
+      "$-\\frac{\\sum_i f_i \\log_2 f_i}{\\log_2 23}$",
+
+      # span
       "$\\max(p) - \\min(p)$",
 
+      # tonality
       "$\\max(\\mathrm{corr}(\\text{key profiles}, melody))$",
       "$A_0 / A_1$",
-      "$A_0 / \\sum_{i: A_i > 0} A_i$",
-      "argmax key",
+      "$A_0 / \\sum_{i:A_i>0} A_i$",
+      "$\\operatorname{argmax}$",
 
-      "$\\sqrt{ \\sum (x_i - \\bar{x})^2 / (N-1) }$",
+      # step contour
+      paste0(
+        "$\\sqrt{",
+        sum_tex("(x_i - \\bar{x})^2", "i", "1", "N-1"),
+        "/(N-1)}$"
+      ),
       "$\\mathrm{cor}(x, 1{:}N)$",
-      "$\\frac{1}{N-1} \\sum |x_{i+1} - x_i|$",
+      paste0(
+        "$\\frac{1}{N-1}",
+        sum_tex(abs_tex("x_{i+1}-x_i"), "i", "1", "N-1"),
+        "$"
+      ),
 
-      "$\\frac{1}{N} \\sum |\\Delta p_i|$",
-      "$\\max |\\Delta p|$",
-      "$\\sum \\mathbb{1}[\\Delta p_i \\Delta p_{i+1} < 0]$",
+      # interval stats
+      paste0(
+        "$\\frac{1}{N}",
+        sum_tex(abs_tex("\\Delta p_i"), "i", "1", "N"),
+        "$"
+      ),
+      paste0("$\\max ", abs_tex("\\Delta p"), "$"),
+      "$\\sum \\mathbb{1}[\\Delta p_i\\,\\Delta p_{i+1} < 0]$",
       "$\\frac{\\text{dir changes}}{N-1}$",
 
       "$|\\{\\Delta p\\}| / N$",
       "$|\\{p\\}| / (N+1)$",
       "$1 - \\frac{\\overline{\\text{run length}}}{N}$",
 
-      "$- \\frac{ \\sum_i f_i \\log_2 f_i }{ \\log_2 24 }$",
-      "$\\sum \\mathbb{1}[r_i = 1] / |R|$",
-      "$\\frac{1}{N} \\sum d_i$",
+      # duration
+      "$-\\frac{\\sum_i f_i \\log_2 f_i}{\\log_2 24}$",
+      "$\\frac{1}{\\lvert R\\rvert}\\sum_i \\mathbb{1}[r_i = 1]$",
+      "$\\frac{1}{N}\\sum_i d_i$",
 
-      "$\\frac{1}{N} \\sum IC(p_i)$"
-    ),
+      # information content
+      "$\\frac{1}{N}\\sum_i IC(p_i)$"
+    )),
 
     Reference = c(
       "Müllensiefen (2009)",
@@ -131,18 +185,25 @@ get_melodic_feature_table <- function(features = NULL, return_kable = TRUE) {
     )
   )
 
+  # ---------------------------------------------------------------------------
+  # Filtering + output
+  # ---------------------------------------------------------------------------
+
   if (!is.null(features)) {
     tbl <- dplyr::filter(tbl, Feature %in% features)
   }
 
   if (return_kable) {
-    tbl <- knitr::kable(tbl, escape = FALSE)
-  } else {
-    warning("Remember to escape kable output so equations render correctly.")
+    tbl <- knitr::kable(
+      tbl,
+      format = "pandoc",
+      escape = FALSE
+    )
   }
 
   tbl
 }
+
 
 
 # get_melodic_feature_table(c("target_melody_length", "i.entropy", "tonalness",
