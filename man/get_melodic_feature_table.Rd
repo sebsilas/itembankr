@@ -7,8 +7,16 @@
 get_melodic_feature_table(features = NULL, return_kable = TRUE)
 }
 \arguments{
-\item{features}{}
+\item{features}{Optional character vector of feature names to filter.}
+
+\item{return_kable}{If TRUE (default), return knitr::kable with escape = FALSE.}
+}
+\value{
+tibble or knitr_kable
 }
 \description{
 Produce a table describing and operationalising melodic features (for paper-writing)
+}
+\examples{
+get_melodic_feature_table(c("target_melody_length","i.entropy","tonalness"))
 }
