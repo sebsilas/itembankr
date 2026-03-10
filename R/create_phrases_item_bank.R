@@ -97,7 +97,7 @@ segment_phrase <- function(note_track,
     outliers <- outliers[outliers > phrase_segment_outlier_threshold]
     note_track <- note_track %>%
       dplyr::mutate(phrasend = as.numeric(ioi > ioi_threshold | ioi %in% outliers),
-                    phrasbeg = as.numeric(dplyr::lag(phrasend) | note_pos == 1))
+                    phrasbeg = as.numeric(dplyr::coalesce(dplyr::lag(phrasend), 0) | note_pos == 1))
 
     note_track$phrasend[is.na(note_track$phrasend)] <- 0
     note_track$phrasend[length(note_track$phrasend)] <- 1
