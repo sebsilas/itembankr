@@ -27,6 +27,8 @@ split_item_bank_into_ngrams <- function(item_bank,
                                         upper_ngram_bound = NULL,
                                         get_ngrukkon = TRUE) {
 
+
+
   # make sure expected columns exist, regardless of prefixing upstream
   item_bank <- ensure_parent_cols(item_bank)
 
@@ -96,7 +98,7 @@ compute_ngram_similarity <- function(ngrams, get_ngrukkon = TRUE) {
       dplyr::filter(N > 3L & length(itembankr::str_mel_to_vector(parent_abs_melody)),
                     N > 3L & length(itembankr::str_mel_to_vector(abs_melody))) %>%
       dplyr::rowwise() %>%
-      dplyr::mutate(ngrukkon_with_parent_melody = musicassessr::ngrukkon(itembankr::str_mel_to_vector(parent_abs_melody),
+      dplyr::mutate(ngrukkon_with_parent_melody = musicassessr::ngrukkon_safe(itembankr::str_mel_to_vector(parent_abs_melody),
                                                       itembankr::str_mel_to_vector(abs_melody))) %>%
       dplyr::ungroup()
     logging::loginfo('Similarity computation complete.')

@@ -293,6 +293,7 @@ compute_ecoacoustics <- function(audio) {
     error = function(e) list(AciTotAll_left = NA, AciTotAll_left_bymin = NA)
   )
 
+
   aci <- tryCatch(seewave::ACI(audio), error = function(e) NA)
 
   tibble::tibble(

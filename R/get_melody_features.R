@@ -37,7 +37,7 @@ get_melody_features <- function(df, mel_sep = ",", durationMeasures = TRUE, abs_
       tonality = list( get_tonality(!! abs_melody_name, sep = mel_sep) ),
       # Calculate step contour measures
       step_contour = list( get_step_contour(!! abs_melody_name, mel_sep = mel_sep, relative = FALSE) ),
-      # Caulcuate KF features
+      # Calcuate KF features
       kf_features = list( dplyr::select(int_ngram_difficulty(int_to_pattern(str_mel_to_vector(melody))), -value) ) ,
       # Calculate duration measures
       duration_measures = get_duration_measures(durations),
@@ -117,22 +117,30 @@ get_tonality <- function(abs_melody, sep = ",") {
 # add local stepwise contour
 get_step_contour <- function(melody, mel_sep = ",", relative = FALSE) {
 
-  if(!is_na_scalar(melody)) {
+  tryCatch({
 
-    melody <- str_mel_to_vector(melody, sep = mel_sep)
+    if(!is_na_scalar(melody)) {
 
-    # wrap the FANTASTIC functions and add in some default durations
-    if(relative) {
-      melody <- rel_to_abs_mel(melody)
+      melody <- str_mel_to_vector(melody, sep = mel_sep)
+
+      # wrap the FANTASTIC functions and add in some default durations
+      if(relative) {
+        melody <- rel_to_abs_mel(melody)
+      }
+
+      len <- length(melody)
+      dur16 <- rep(.25, length(melody))
+      step.contour.vector <- step.contour(melody,dur16)
+      step.contour <- compute.step.cont.feat(step.contour.vector)
     }
 
-    len <- length(melody)
-    dur16 <- rep(.25, length(melody))
-    step.contour.vector <- step.contour(melody,dur16)
-    step.contour <- compute.step.cont.feat(step.contour.vector)
-  } else {
-    ton.results <- matrix(c(NA, NA, NA, NA), nrow = 1, ncol = 4) %>% as.data.frame()
-  }
+  }, error = function(err) {
+    logging::logerror(err)
+    step.contour <- tibble::tibble(step.cont.glob.var = NA, step.cont.glob.dir = NA, step.cont.loc.var = NA)
+    step.contour
+  })
+
+
 }
 
 get_duration_measures <- function(durations) {
