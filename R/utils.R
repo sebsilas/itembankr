@@ -678,3 +678,12 @@ order_item_bank_cols <- function(df) {
 }
 
 
+normalize_file_key <- function(x) {
+
+  x %>%
+    utils::URLdecode() %>%
+    stringr::str_replace_all("\\\\", "/") %>%
+    basename() %>%
+    tools::file_path_sans_ext()
+
+}

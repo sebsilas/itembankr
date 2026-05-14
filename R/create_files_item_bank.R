@@ -42,7 +42,7 @@ create_item_bank_from_files <- function(midi_file_dir = NULL,
 
     midi_files_df <- midi_files_df %>%
       dplyr::mutate(
-        file_key = tools::file_path_sans_ext(midi_file)
+        file_key = normalize_file_key(midi_file)
       ) %>%
       dplyr::rename(abs_melody = note) %>%
       dplyr::select(abs_melody, durations, onset, midi_file, file_key, bpm)
@@ -70,7 +70,7 @@ create_item_bank_from_files <- function(midi_file_dir = NULL,
       cli::cli_inform(cli::col_blue(paste("Processing MusicXML:", f)))
       musicxml_file_to_notes_and_durations(f)
     }) %>%
-      dplyr::mutate(file_key = tools::file_path_sans_ext(musicxml_file))
+      dplyr::mutate(file_key = normalize_file_key(musicxml_file))
 
     res_musicxml <- music_xml_files_df
   }
@@ -94,7 +94,7 @@ create_item_bank_from_files <- function(midi_file_dir = NULL,
     if (!is.null(slice_head)) audio_files <- audio_files[1:slice_head]
 
     res_audio <- tibble::tibble(audio_file = basename(audio_files)) %>%
-      dplyr::mutate(file_key = tools::file_path_sans_ext(audio_file))
+      dplyr::mutate(file_key = normalize_file_key(audio_file))
   }
 
   #──────────────────────────────────────────────────────────────

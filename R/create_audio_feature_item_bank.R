@@ -38,7 +38,7 @@ create_audio_feature_bank <- function(audio_file_dir,
     return(NA)
 
   af <- purrr::map_dfr(audio_files, function(fp) {
-    fkey <- tools::file_path_sans_ext(basename(fp))
+    fkey <- normalize_file_key(fp)
     safe <- tryCatch(
       extract_audio_features(
         audio_file_path = fp,
@@ -144,7 +144,7 @@ extract_audio_features <- function(audio_file_path,
                               error = function(e) tibble::tibble())
 
   dplyr::bind_cols(mfcc_df, spec_df, tempo_df, ecoacoustics_df) |>
-    dplyr::mutate(file_key = tools::file_path_sans_ext(basename(original_audio_file_path))) |>
+    dplyr::mutate(file_key = normalize_file_key(original_audio_file_path)) |>
     dplyr::relocate(file_key) |>
     dplyr::mutate(across(where(is.list), ~ purrr::map_dbl(., as.numeric)))
 }
