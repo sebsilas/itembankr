@@ -238,7 +238,7 @@ create_item_bank <- function(name = "",
     if (input != "files_phrases") {
       phrase_item_bank <- phrase_item_bank %>%
         { if(audio_only) . else remove_melodies(., remove_melodies_with_only_repeated_notes, remove_melodies_with_any_repeated_notes) } %>%
-        { if(audio_only) . else scale_durations_to_have_min_abs_value_of_x_seconds(x = scale_durations_to_have_min_abs_value_of_x_seconds) } %>%
+        { if(audio_only) . else scale_durations_to_have_min_abs_value_of_x_seconds(., x = scale_durations_to_have_min_abs_value_of_x_seconds) } %>%
         { if(audio_only) . else get_melody_features(.) } %>%
         dplyr::mutate(item_type = "phrase",
                       item_id   = paste0(name, "_phrase_", dplyr::row_number()))
